@@ -1,13 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const env = require('./env');
 const isNetlify = Boolean(process.env.NETLIFY || process.env.NETLIFY_DB_URL);
 let db;
 let pool;
 
-if (!isNetlify) { fs.mkdirSync(path.dirname(env.dbPath), { recursive: true }); db = new sqlite3.Database(env.dbPath); }
+if (!isNetlify) { const sqlite3 = require('sqlite3').verbose(); fs.mkdirSync(path.dirname(env.dbPath), { recursive: true }); db = new sqlite3.Database(env.dbPath); }
 const sqliteRun = (sql, params = []) => new Promise((resolve, reject) => db.run(sql, params, function onRun(error) { if (error) reject(error); else resolve({ id: this.lastID, changes: this.changes }); }));
 const sqliteGet = (sql, params = []) => new Promise((resolve, reject) => db.get(sql, params, (error, row) => error ? reject(error) : resolve(row)));
 const sqliteAll = (sql, params = []) => new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows)));

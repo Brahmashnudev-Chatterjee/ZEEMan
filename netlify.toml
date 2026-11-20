@@ -5,7 +5,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["express", "sqlite3", "pg"]
 
 [[redirects]]
   from = "/api/*"
