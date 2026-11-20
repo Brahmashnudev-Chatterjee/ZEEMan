@@ -10,6 +10,8 @@ services:
       DATABASE_PATH: /app/data/zeeman.db
       APP_ORIGIN: http://localhost:8080
       COOKIE_SECURE: "false"
+      EMAIL_TRANSPORT: console
+      DEVELOPMENT_EMAIL_TRANSPORT: "true"
       JWT_SECRET_FILE: /run/secrets/jwt_secret
       ADMIN_NAME_FILE: /run/secrets/admin_name
       ADMIN_EMAIL_FILE: /run/secrets/admin_email

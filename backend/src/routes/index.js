@@ -5,6 +5,7 @@ const task = require('../controllers/task.controller');
 const admin = require('../controllers/admin.controller');
 const project = require('../controllers/project.controller');
 const publicController = require('../controllers/public.controller');
+const onboarding = require('../controllers/onboarding.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 
@@ -12,10 +13,19 @@ router.get('/health', (_, res) => res.json({ status: 'ok', service: 'zeeman-api'
 router.post('/contact', authLimit, publicController.contact);
 router.post('/auth/register', authLimit, auth.register);
 router.post('/auth/login', authLimit, auth.login);
+router.post('/auth/forgot-password', authLimit, auth.forgotPassword);
+router.post('/auth/reset-password', authLimit, auth.resetPassword);
+router.post('/auth/verify-email', authLimit, auth.verifyEmail);
 router.post('/auth/logout', authenticate, auth.logout);
 router.get('/auth/me', authenticate, auth.me);
 router.put('/auth/profile', authenticate, auth.updateProfile);
 router.put('/auth/password', authenticate, auth.updatePassword);
+router.post('/auth/resend-verification', authenticate, authLimit, auth.resendVerification);
+router.get('/auth/onboarding', authenticate, onboarding.status);
+router.put('/auth/onboarding/profile', authenticate, onboarding.profile);
+router.post('/auth/onboarding/project', authenticate, onboarding.project);
+router.post('/auth/onboarding/task', authenticate, onboarding.task);
+router.post('/auth/onboarding/complete', authenticate, onboarding.complete);
 router.get('/projects', authenticate, project.list);
 router.get('/projects/:id', authenticate, project.getOne);
 router.post('/projects', authenticate, project.create);

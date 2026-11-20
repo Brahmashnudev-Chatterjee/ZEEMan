@@ -48,6 +48,14 @@ Use `docker compose down` to stop containers without deleting data. Avoid `docke
 - RBAC and SQL ownership checks
 - Exact allowed-origin checks on API writes
 - Helmet, parameterized SQL, rate-limited authentication, and Docker Secrets
+- One-time, hashed password-reset and email-verification tokens with a one-hour expiry
+- SMTP configuration through environment variables; local Compose uses an explicitly labelled console-only development mail transport
+
+## Account recovery and onboarding
+
+Use `/forgot-password` to request a reset link and `/reset-password?token=...` to choose a new password. In local Docker development, verification and reset URLs are emitted by the console transport; configure `EMAIL_TRANSPORT=smtp` and the `SMTP_*` variables before any public deployment.
+
+New accounts are directed to `/onboarding`, where profile, first project, and first task records are saved without duplicating them when a step is revisited.
 
 ## Tests
 

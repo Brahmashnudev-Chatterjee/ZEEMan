@@ -21,6 +21,7 @@ const frontend = path.join(__dirname, '../../frontend');
 app.use(express.static(frontend));
 app.get('/login', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
 app.get('/register', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
+app.get(['/forgot-password', '/reset-password', '/verify-email', '/onboarding'], (_, res) => res.sendFile(path.join(frontend, 'login.html')));
 app.get('/admin/dashboard', (_, res) => res.sendFile(path.join(frontend, 'admin/dashboard.html')));
 app.get('/user/dashboard', (_, res) => res.sendFile(path.join(frontend, 'user/dashboard.html')));
 app.get(['/features', '/how-it-works', '/about', '/contact', '/privacy', '/terms', '/404'], (_, res) => res.sendFile(path.join(frontend, 'index.html')));

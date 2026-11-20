@@ -22,6 +22,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 module.exports = {
+  nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 3000),
   dbPath: process.env.DATABASE_PATH || path.join(__dirname, '../../../data/tasks.db'),
   jwtSecret: jwtSecret || 'development-only-change-this-secret-before-production',
@@ -32,5 +33,15 @@ module.exports = {
     name: adminName || 'ZeeMan Administrator',
     email: (adminEmail || 'admin@zeeman.local').toLowerCase(),
     password: adminPassword || null
+  },
+  mail: {
+    transport: process.env.EMAIL_TRANSPORT || 'console',
+    developmentMode: process.env.DEVELOPMENT_EMAIL_TRANSPORT === 'true',
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.EMAIL_FROM || 'no-reply@zeeman.local'
   }
 };
