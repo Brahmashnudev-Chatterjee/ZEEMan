@@ -1,0 +1,57 @@
+name: zeeman
+
+services:
+  backend:
+    build: ./backend
+    image: ${DOCKERHUB_USERNAME:-local}/smart-task-manager-backend:${TAG:-latest}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_PATH: /app/data/zeeman.db
+      APP_ORIGIN: http://localhost:8080
+      COOKIE_SECURE: "false"
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      ADMIN_NAME_FILE: /run/secrets/admin_name
+      ADMIN_EMAIL_FILE: /run/secrets/admin_email
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    secrets: [jwt_secret, admin_name, admin_email, admin_password]
+    volumes: [zeeman-data:/app/data]
+    networks: [zeeman-network]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    image: ${DOCKERHUB_USERNAME:-local}/smart-task-manager-frontend:${TAG:-latest}
+    ports: ["8080:80"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [zeeman-network]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  zeeman-network:
+    driver: bridge
+
+volumes:
+  zeeman-data:
+    name: zeeman-data
+
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  admin_name:
+    file: ./secrets/admin_name.txt
+  admin_email:
+    file: ./secrets/admin_email.txt
+  admin_password:
+    file: ./secrets/admin_password.txt

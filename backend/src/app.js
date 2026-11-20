@@ -1,0 +1,28 @@
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+const env = require('./config/env');
+const routes = require('./routes');
+const app = express();
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(cors({ origin: env.appOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(express.json({ limit: '100kb' }));
+app.use(cookieParser());
+app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use('/api', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && req.headers.origin !== env.appOrigin) return res.status(403).json({ message: 'Request origin is not permitted.' });
+  next();
+});
+app.use('/api', routes);
+const frontend = path.join(__dirname, '../../frontend');
+app.use(express.static(frontend));
+app.get('/login', (_, res) => res.sendFile(path.join(frontend, 'index.html')));
+app.get('/register', (_, res) => res.sendFile(path.join(frontend, 'index.html')));
+app.get('/admin/dashboard', (_, res) => res.sendFile(path.join(frontend, 'admin/dashboard.html')));
+app.get('/user/dashboard', (_, res) => res.sendFile(path.join(frontend, 'user/dashboard.html')));
+app.use((req, res) => res.status(404).json({ message: 'Route not found.' }));
+app.use((error, req, res, next) => { console.error(error); const status = error.type === 'entity.parse.failed' ? 400 : 500; res.status(status).json({ message: status === 400 ? 'Malformed JSON payload.' : 'An unexpected error occurred.' }); });
+module.exports = app;

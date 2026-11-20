@@ -1,0 +1,17 @@
+{
+  "name": "zeeman-smart-task-manager",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["backend"],
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "seed": "node backend/src/seed.js",
+    "docker:secrets": "node scripts/create-docker-secrets.js",
+    "dev": "npm --prefix backend run dev",
+    "start": "npm --prefix backend start",
+    "test": "npm --prefix backend test",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "description": "ZeeMan role-based task manager"
+}

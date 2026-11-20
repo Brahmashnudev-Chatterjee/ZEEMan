@@ -1,0 +1,13 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const envPath = path.join(root, '.env');
+if (!fs.existsSync(envPath)) throw new Error('Create .env first with npm run setup or copy .env.example.');
+const values = Object.fromEntries(fs.readFileSync(envPath, 'utf8').split(/\r?\n/).filter((line) => line && !line.startsWith('#') && line.includes('=')).map((line) => { const index = line.indexOf('='); return [line.slice(0, index), line.slice(index + 1)]; }));
+const required = ['JWT_SECRET', 'ADMIN_NAME', 'ADMIN_EMAIL', 'ADMIN_PASSWORD'];
+for (const key of required) if (!values[key] || values[key].includes('CHANGE_ME') || values[key].includes('replace-with')) throw new Error(`${key} must be set in .env before Docker secrets can be created.`);
+const dir = path.join(root, 'secrets');
+fs.mkdirSync(dir, { recursive: true });
+const secrets = { jwt_secret: values.JWT_SECRET, admin_name: values.ADMIN_NAME, admin_email: values.ADMIN_EMAIL, admin_password: values.ADMIN_PASSWORD };
+for (const [name, value] of Object.entries(secrets)) fs.writeFileSync(path.join(dir, `${name}.txt`), `${value}\n`, { mode: 0o600 });
+console.log('Docker secret files created in secrets/. They are ignored by Git.');
