@@ -89,8 +89,24 @@
     render();
   }
 
+  async function allocationOnboardingPage() {
+    const onboarding = (await api('/auth/onboarding')).onboarding; let step = 1;
+    const render = () => {
+      const screens = {
+        1: '<h2>Welcome to ZeeMan</h2><p>Your administrator will allocate projects and tasks to you. Once assigned, they will appear in My Projects and My Tasks.</p>',
+        2: `<h2>Complete your profile</h2><label>Full name<input id="allocation-name" required maxlength="120" value="${esc(onboarding.name || '')}"></label><label>Profile details <small>(optional)</small><textarea id="allocation-bio" maxlength="500">${esc(onboarding.bio || '')}</textarea></label>`,
+        3: '<h2>Ready for allocated work</h2><p>You are ready. Your administrator will assign projects and tasks to this workspace. Until then, your dashboard will show an empty state.</p>'
+      };
+      content.innerHTML = `<div class="auth-heading onboarding-card"><p class="eyebrow">WORKSPACE SETUP · ${step}/3</p>${screens[step]}<p id="onboarding-status" class="form-status" role="status"></p></div><div class="onboarding-actions">${step > 1 ? '<button class="btn secondary" id="on-back" type="button">Back</button>' : '<span></span>'}<button class="btn primary" id="on-next" type="button">${step === 3 ? 'Go to dashboard' : 'Continue'}</button></div>`;
+      document.querySelector('#on-back')?.addEventListener('click', () => { step--; render(); });
+      document.querySelector('#on-next').onclick = async (event) => { const button = event.currentTarget; const status = document.querySelector('#onboarding-status'); try { if (step === 2) { const name = document.querySelector('#allocation-name').value.trim(); if (!name) throw new Error('Your name is required.'); setBusy(button, true, 'Saving…'); await api('/auth/onboarding/profile', { method: 'PUT', body: JSON.stringify({ name, bio: document.querySelector('#allocation-bio').value, avatar_url: '' }) }); } if (step === 3) { setBusy(button, true, 'Finishing…'); await api('/auth/onboarding/complete', { method: 'POST' }); location.href = '/user/dashboard'; return; } step++; render(); } catch (error) { status.textContent = error.message; setBusy(button, false); } };
+    };
+    render();
+  }
+
   async function init() {
     const route = location.pathname;
+    if (route === '/onboarding') { const user = await signedInUser(); if (!user) { location.href = '/login'; return; } if (user.role === 'admin') { location.href = '/admin/dashboard'; return; } await allocationOnboardingPage(); return; }
     if (route === '/onboarding') { const user = await signedInUser(); if (!user) { location.href = '/login'; return; } await onboardingPage(); return; }
     if (route === '/verify-email') return verificationPage();
     if (route === '/forgot-password') return recoveryPage(false);

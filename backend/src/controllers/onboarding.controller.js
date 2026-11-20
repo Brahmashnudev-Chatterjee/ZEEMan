@@ -15,6 +15,7 @@ exports.profile = asyncHandler(async (req, res) => {
   res.json({ message: 'Profile saved.' });
 });
 exports.project = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Projects are allocated by an administrator.' });
   const { name, description = '', start_date = null, due_date = null, skip = false } = req.body;
   if (skip) { await run('UPDATE users SET onboarding_step=MAX(onboarding_step, 3) WHERE id=?', [req.user.id]); return res.json({ skipped: true }); }
   if (!name?.trim()) return res.status(400).json({ message: 'Project name is required.' });
@@ -28,6 +29,7 @@ exports.project = asyncHandler(async (req, res) => {
   res.json({ project_id: projectId });
 });
 exports.task = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Tasks are allocated by an administrator.' });
   const { title, description = '', priority = 'medium', start_date = null, due_date = null, skip = false } = req.body;
   if (skip) { await run('UPDATE users SET onboarding_step=MAX(onboarding_step, 4) WHERE id=?', [req.user.id]); return res.json({ skipped: true }); }
   if (!title?.trim() || !['low', 'medium', 'high'].includes(priority)) return res.status(400).json({ message: 'Provide a task title and valid priority.' });

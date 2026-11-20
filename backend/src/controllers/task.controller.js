@@ -3,9 +3,12 @@ const { asyncHandler, logActivity } = require('../utils/http');
 const validStatus = ['pending', 'in_progress', 'completed', 'cancelled'];
 const validPriority = ['low', 'medium', 'high'];
 const taskSelect = `SELECT t.*, u.name AS user_name, c.name AS category_name, p.name AS project_name, p.owner_user_id AS project_owner_id FROM tasks t JOIN users u ON u.id=t.user_id LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN projects p ON p.id=t.project_id`;
-const accessCondition = `(t.project_id IS NULL AND t.user_id=?) OR (t.project_id IS NOT NULL AND EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id=t.project_id AND pm.user_id=?))`;
+// Regular users work only on projects to which an administrator allocated them.
+// Legacy personal tasks remain in the database for a deliberate migration, but are
+// intentionally not exposed through the allocation-based workspace.
+const accessCondition = `(t.project_id IS NOT NULL AND EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id=t.project_id AND pm.user_id=?))`;
 const validate = (body) => { if (!body.title?.trim()) return 'Task title is required.'; if (body.status && !validStatus.includes(body.status)) return 'Invalid task status.'; if (body.priority && !validPriority.includes(body.priority)) return 'Invalid task priority.'; if (body.start_date && Number.isNaN(Date.parse(body.start_date))) return 'Start date is invalid.'; if (body.due_date && Number.isNaN(Date.parse(body.due_date))) return 'Due date is invalid.'; if (body.start_date && body.due_date && new Date(body.start_date) > new Date(body.due_date)) return 'Start date must be on or before the due date.'; return null; };
-const scope = (req, id) => req.user.role === 'admin' ? get(`${taskSelect} WHERE t.id=?`, [id]) : get(`${taskSelect} WHERE t.id=? AND (${accessCondition})`, [id, req.user.id, req.user.id]);
+const scope = (req, id) => req.user.role === 'admin' ? get(`${taskSelect} WHERE t.id=?`, [id]) : get(`${taskSelect} WHERE t.id=? AND (${accessCondition})`, [id, req.user.id]);
 const projectFor = (id) => id ? get('SELECT * FROM projects WHERE id=?', [id]) : null;
 const isMember = (projectId, userId) => get('SELECT member_role FROM project_members WHERE project_id=? AND user_id=?', [projectId, userId]);
 
@@ -19,9 +22,10 @@ async function assertProjectAccess(req, projectId, assignee) {
 }
 
 exports.list = asyncHandler(async (req, res) => {
-  const { search = '', status, priority, category_id, project_id, sort = 'due_date', order = 'asc' } = req.query;
+  const { search = '', status, priority, category_id, project_id, assigned_to_me, sort = 'due_date', order = 'asc' } = req.query;
   const conditions = [], params = [];
-  if (req.user.role !== 'admin') { conditions.push(`(${accessCondition})`); params.push(req.user.id, req.user.id); }
+  if (req.user.role !== 'admin') { conditions.push(`(${accessCondition})`); params.push(req.user.id); }
+  if (assigned_to_me === 'true') { conditions.push('t.user_id=?'); params.push(req.user.id); }
   if (search) { conditions.push('(t.title LIKE ? OR t.description LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
   if (status && validStatus.includes(status)) { conditions.push('t.status=?'); params.push(status); }
   if (priority && validPriority.includes(priority)) { conditions.push('t.priority=?'); params.push(priority); }
@@ -33,16 +37,18 @@ exports.list = asyncHandler(async (req, res) => {
 exports.getOne = asyncHandler(async (req, res) => { const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' }); res.json({ task }); });
 exports.create = asyncHandler(async (req, res) => {
   const error = validate(req.body); if (error) return res.status(400).json({ message: error });
-  const userId = req.user.role === 'admin' && req.body.user_id ? Number(req.body.user_id) : req.user.id;
+  if (!req.body.project_id || !req.body.user_id) return res.status(400).json({ message: 'Project and assigned user are required.' });
+  const userId = Number(req.body.user_id);
   const owner = await get("SELECT id, name FROM users WHERE id=? AND account_status='active'", [userId]); if (!owner) return res.status(400).json({ message: 'Choose an active user.' });
   const categoryId = req.body.category_id || null; if (categoryId && !await get('SELECT id FROM categories WHERE id=?', [categoryId])) return res.status(400).json({ message: 'Category does not exist.' });
-  const projectId = req.body.project_id || null;
+  const projectId = Number(req.body.project_id);
   try { await assertProjectAccess(req, projectId, userId); } catch (projectError) { return res.status(projectError.status || 400).json({ message: projectError.message }); }
   const status = req.body.status || 'pending';
   const result = await run('INSERT INTO tasks (title, description, user_id, category_id, project_id, priority, status, start_date, due_date, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.body.title.trim(), (req.body.description || '').trim(), userId, categoryId, projectId, req.body.priority || 'medium', status, req.body.start_date || null, req.body.due_date || null, status === 'completed' ? new Date().toISOString() : null]);
   if (userId !== req.user.id) await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [userId, 'task_assigned', `You were assigned: ${req.body.title.trim()}`]);
-  await logActivity({ run }, req.user.id, 'TASK_CREATED', `Created task: ${req.body.title.trim()}`);
-  res.status(201).json({ task: await get(`${taskSelect} WHERE t.id=?`, [result.id]) });
+  const created = await get(`${taskSelect} WHERE t.id=?`, [result.id]);
+  await logActivity({ run }, req.user.id, 'TASK_CREATED', `Created task: ${req.body.title.trim()} in ${created.project_name}`);
+  res.status(201).json({ task: created });
 });
 exports.update = asyncHandler(async (req, res) => {
   const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' });
@@ -53,7 +59,20 @@ exports.update = asyncHandler(async (req, res) => {
   const status = input.status; const completedAt = status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
   await run('UPDATE tasks SET title=?, description=?, user_id=?, category_id=?, project_id=?, priority=?, status=?, start_date=?, due_date=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [input.title.trim(), input.description || '', userId, input.category_id || null, projectId, input.priority, status, input.start_date || null, input.due_date || null, completedAt, task.id]);
   if (userId !== task.user_id) await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [userId, 'task_assigned', `You were assigned: ${input.title.trim()}`]);
-  await logActivity({ run }, req.user.id, 'TASK_UPDATED', `Updated task: ${input.title.trim()}`);
+  const updated = await get(`${taskSelect} WHERE t.id=?`, [task.id]);
+  await logActivity({ run }, req.user.id, 'TASK_UPDATED', `Updated task: ${input.title.trim()} in ${updated.project_name}`);
+  res.json({ task: updated });
+});
+exports.updateStatus = asyncHandler(async (req, res) => {
+  const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' });
+  if (req.user.role !== 'admin' && task.user_id !== req.user.id) return res.status(403).json({ message: 'Only the assigned user can update this task status.' });
+  const keys = Object.keys(req.body || {});
+  if (keys.length !== 1 || keys[0] !== 'status') return res.status(400).json({ message: 'Only the status field may be updated here.' });
+  if (!validStatus.includes(req.body.status)) return res.status(400).json({ message: 'Invalid task status.' });
+  const completedAt = req.body.status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
+  await run('UPDATE tasks SET status=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [req.body.status, completedAt, task.id]);
+  await logActivity({ run }, req.user.id, req.body.status === 'completed' ? 'TASK_COMPLETED' : 'TASK_STATUS_UPDATED', `${req.user.name} updated task status: ${task.title} in ${task.project_name}`);
+  if (req.user.role !== 'admin' && req.body.status === 'completed') await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [task.project_owner_id, 'task_completed', `${req.user.name} completed: ${task.title}`]);
   res.json({ task: await get(`${taskSelect} WHERE t.id=?`, [task.id]) });
 });
-exports.remove = asyncHandler(async (req, res) => { const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' }); if (req.user.role !== 'admin' && task.project_id && task.project_owner_id !== req.user.id && task.user_id !== req.user.id) return res.status(403).json({ message: 'Only the project owner or assigned user can delete this task.' }); await run('DELETE FROM tasks WHERE id=?', [task.id]); await logActivity({ run }, req.user.id, 'TASK_DELETED', `Deleted task: ${task.title}`); res.status(204).end(); });
+exports.remove = asyncHandler(async (req, res) => { const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' }); if (req.user.role !== 'admin' && task.project_id && task.project_owner_id !== req.user.id && task.user_id !== req.user.id) return res.status(403).json({ message: 'Only the project owner or assigned user can delete this task.' }); await run('DELETE FROM tasks WHERE id=?', [task.id]); await logActivity({ run }, req.user.id, 'TASK_DELETED', `Deleted task: ${task.title} in ${task.project_name || 'a project'}`); res.status(204).end(); });

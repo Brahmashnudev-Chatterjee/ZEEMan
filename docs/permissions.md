@@ -1,14 +1,15 @@
 # ZeeMan permission matrix
 
-| Capability | Admin | Project owner | Project member | Unrelated user |
-| --- | --- | --- | --- | --- |
-| View all users/projects/tasks | Yes | No | No | No |
-| Create a project | Yes | Yes | Yes, owns created project | Yes, owns created project |
-| Edit/delete a project | Any project | Owned project | No | No |
-| Manage project members | Any project | Owned project | No | No |
-| View a private task | Yes | Only own | Only own | No |
-| View a shared project task | Yes | Yes | Yes | No, returns 404 |
-| Assign a project task | Yes | To project members | Planned permission option | No |
-| Manage categories/users/global reports | Yes | No | No | No |
+| Capability | Admin | Allocated project member | Unrelated user |
+| --- | --- | --- | --- |
+| View all users, projects, and tasks | Yes | No | No |
+| Create/edit/archive/delete projects | Yes | No | No |
+| Add/remove project members | Yes | No | No |
+| Create/edit/delete/reassign project tasks | Yes | No | No |
+| Change task priority, dates, or project | Yes | No | No |
+| View an allocated project and its tasks | Yes | Yes | No (404) |
+| View an allocated project member list | Yes | Yes | No (404) |
+| Update task status | Any project task | Only task assigned to self | No (404/403) |
+| Manage users, categories, reports | Yes | No | No |
 
-Every entry is enforced by Express route/controller checks and SQL predicates. The client navigation is only a usability layer; it is not an authorization control.
+All constraints are enforced through Express authentication, role middleware, project-membership SQL predicates, and task-assignee checks. The frontend is not relied on for authorisation.
