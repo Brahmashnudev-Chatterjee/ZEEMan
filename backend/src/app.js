@@ -19,10 +19,11 @@ app.use('/api', (req, res, next) => {
 app.use('/api', routes);
 const frontend = path.join(__dirname, '../../frontend');
 app.use(express.static(frontend));
-app.get('/login', (_, res) => res.sendFile(path.join(frontend, 'index.html')));
-app.get('/register', (_, res) => res.sendFile(path.join(frontend, 'index.html')));
+app.get('/login', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
+app.get('/register', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
 app.get('/admin/dashboard', (_, res) => res.sendFile(path.join(frontend, 'admin/dashboard.html')));
 app.get('/user/dashboard', (_, res) => res.sendFile(path.join(frontend, 'user/dashboard.html')));
+app.get(['/features', '/how-it-works', '/about', '/contact', '/privacy', '/terms', '/404'], (_, res) => res.sendFile(path.join(frontend, 'index.html')));
 app.use((req, res) => res.status(404).json({ message: 'Route not found.' }));
 app.use((error, req, res, next) => { console.error(error); const status = error.type === 'entity.parse.failed' ? 400 : 500; res.status(status).json({ message: status === 400 ? 'Malformed JSON payload.' : 'An unexpected error occurred.' }); });
 module.exports = app;

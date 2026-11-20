@@ -11,6 +11,13 @@ const { initializeDatabase } = require('../src/config/database');
 const uniqueEmail = () => `test-${Date.now()}-${Math.random().toString(16).slice(2)}@example.test`;
 test.after(() => { for (const suffix of ['', '-shm', '-wal']) { try { fs.unlinkSync(`${testDb}${suffix}`); } catch (_) {} } });
 test('health endpoint responds', async () => { const response = await request(app).get('/api/health'); assert.equal(response.status, 200); assert.equal(response.body.status, 'ok'); });
+test('public contact form accepts valid submissions and rejects incomplete input', async () => {
+  await initializeDatabase();
+  const accepted = await request(app).post('/api/contact').set('Origin', 'http://localhost:3000').send({ name: 'Website Visitor', email: 'visitor@example.test', subject: 'Interested in ZeeMan', message: 'Please tell me more about project collaboration.' });
+  assert.equal(accepted.status, 201);
+  const rejected = await request(app).post('/api/contact').set('Origin', 'http://localhost:3000').send({ name: 'Website Visitor' });
+  assert.equal(rejected.status, 400);
+});
 test('regular users cannot access another user task or admin routes', async () => {
   await initializeDatabase();
   const firstAgent = request.agent(app);

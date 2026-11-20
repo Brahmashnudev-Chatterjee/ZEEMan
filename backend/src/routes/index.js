@@ -4,10 +4,12 @@ const auth = require('../controllers/auth.controller');
 const task = require('../controllers/task.controller');
 const admin = require('../controllers/admin.controller');
 const project = require('../controllers/project.controller');
+const publicController = require('../controllers/public.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { message: 'Too many authentication attempts. Please try again later.' } });
 
 router.get('/health', (_, res) => res.json({ status: 'ok', service: 'zeeman-api', timestamp: new Date().toISOString() }));
+router.post('/contact', authLimit, publicController.contact);
 router.post('/auth/register', authLimit, auth.register);
 router.post('/auth/login', authLimit, auth.login);
 router.post('/auth/logout', authenticate, auth.logout);

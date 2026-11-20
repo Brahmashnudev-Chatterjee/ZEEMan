@@ -9,7 +9,13 @@ ZeeMan is a responsive role-based task manager built with HTML5, CSS3, vanilla J
 - Project-aware task assignment, Kanban, calendar, search, categories, dashboards, and analytics.
 - Project membership creates in-app assignment/membership notifications and activity records.
 
-Phase 2 will add comments, subtasks, and notification UI. Phase 3 will add milestones, dependencies, recurring tasks, time tracking, and Gantt planning.
+Phase 2 delivers the public ZeeMan website and will next add comments, subtasks, and notification UI. Phase 3 will add milestones, dependencies, recurring tasks, time tracking, and Gantt planning.
+
+## Public website
+
+The public site is available at `/` with dedicated Features, How it works, About, Contact, Privacy, and Terms pages. The responsive navigation links to the existing secure sign-in and registration flows.
+
+The contact form sends validated messages to `POST /api/contact`; submissions are stored in the SQLite database rather than shown as a dummy success state.
 
 ## Start locally
 
