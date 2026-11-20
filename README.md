@@ -199,6 +199,20 @@ The current suite has **7 passing API tests**. It verifies health, contact valid
 
 Docker persistence was verified by restarting the backend with its named volume intact; stored contact records remained available.
 
+## Netlify deployment
+
+ZeeMan can be deployed as a full-stack Netlify site. The included `netlify.toml` publishes `frontend/`, rewrites browser routes to their matching static shell, and rewrites `/api/*` to `netlify/functions/api.js`. The function wraps the existing Express application with `serverless-http`.
+
+For durable Netlify data, ZeeMan switches from local SQLite to Netlify Database (PostgreSQL) when `NETLIFY` or `NETLIFY_DB_URL` is available. The production schema is in `netlify/database/migrations/0001_zeeman_schema.sql`; Netlify applies this migration before publishing a deploy.
+
+1. Push this repository to GitHub and import it into Netlify.
+2. Keep the base directory empty, publish directory as `frontend`, and functions directory as `netlify/functions` (the checked-in `netlify.toml` sets these values).
+3. Create a Netlify Database in **Data & Storage**. Do not copy its connection string into source control.
+4. Add production environment variables in Netlify: `JWT_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `APP_ORIGIN` (your exact Netlify URL/custom domain), `COOKIE_SECURE=true`, `EMAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`.
+5. Deploy. Test `/api/health`, registration, login, and a task creation with a new test account.
+
+Do not set `DEVELOPMENT_EMAIL_TRANSPORT=true` in Netlify production. The Netlify database migration is PostgreSQL-specific; Docker/local development continues to use SQLite.
+
 ## Current limitations / next work
 
 - SMTP must be configured for real production email delivery.

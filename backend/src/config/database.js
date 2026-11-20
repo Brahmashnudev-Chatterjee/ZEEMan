@@ -3,14 +3,30 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const env = require('./env');
+const isNetlify = Boolean(process.env.NETLIFY || process.env.NETLIFY_DB_URL);
+let db;
+let pool;
 
-fs.mkdirSync(path.dirname(env.dbPath), { recursive: true });
-const db = new sqlite3.Database(env.dbPath);
-const run = (sql, params = []) => new Promise((resolve, reject) => db.run(sql, params, function onRun(error) { if (error) reject(error); else resolve({ id: this.lastID, changes: this.changes }); }));
-const get = (sql, params = []) => new Promise((resolve, reject) => db.get(sql, params, (error, row) => error ? reject(error) : resolve(row)));
-const all = (sql, params = []) => new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows)));
+if (!isNetlify) { fs.mkdirSync(path.dirname(env.dbPath), { recursive: true }); db = new sqlite3.Database(env.dbPath); }
+const sqliteRun = (sql, params = []) => new Promise((resolve, reject) => db.run(sql, params, function onRun(error) { if (error) reject(error); else resolve({ id: this.lastID, changes: this.changes }); }));
+const sqliteGet = (sql, params = []) => new Promise((resolve, reject) => db.get(sql, params, (error, row) => error ? reject(error) : resolve(row)));
+const sqliteAll = (sql, params = []) => new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows)));
+const pgPool = () => { if (!pool) { const { Pool } = require('pg'); const connectionString = process.env.NETLIFY_DB_URL || require('@netlify/database').getConnectionString(); pool = new Pool({ connectionString, max: 1 }); } return pool; };
+const pgSql = (sql) => { let parameter = 0; return sql.replace(/datetime\('now'\)/g, 'CURRENT_TIMESTAMP').replace(/date\('now'\)/g, 'CURRENT_DATE').replace(/\bMAX\(/g, 'GREATEST(').replace(/\?/g, () => `$${++parameter}`); };
+const pgRun = async (sql, params = []) => { let text = pgSql(sql); const write = /^\s*(INSERT|UPDATE|DELETE)\s+/i.test(text); if (write && !/\bRETURNING\b/i.test(text)) text += ' RETURNING *'; const result = await pgPool().query(text, params); return { id: result.rows[0]?.id, changes: result.rowCount }; };
+const pgGet = async (sql, params = []) => (await pgPool().query(pgSql(sql), params)).rows[0];
+const pgAll = async (sql, params = []) => (await pgPool().query(pgSql(sql), params)).rows;
+const run = isNetlify ? pgRun : sqliteRun;
+const get = isNetlify ? pgGet : sqliteGet;
+const all = isNetlify ? pgAll : sqliteAll;
 
 async function initializeDatabase() {
+  if (isNetlify) {
+    for (const category of [['Work', 'Professional work and career tasks'], ['Personal', 'Personal goals and errands'], ['Study', 'Learning and coursework'], ['Other', 'Everything else']]) await pgPool().query('INSERT INTO categories (name, description) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING', category);
+    const admin = await get('SELECT id FROM users WHERE email = ?', [env.admin.email]);
+    if (!admin && env.admin.password) await run('INSERT INTO users (name, email, password_hash, role, email_verified_at, onboarding_completed_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)', [env.admin.name, env.admin.email, await bcrypt.hash(env.admin.password, 12), 'admin']);
+    return;
+  }
   await run('PRAGMA foreign_keys = ON');
   await run('PRAGMA journal_mode = WAL');
   await run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin','user')), account_status TEXT NOT NULL DEFAULT 'active' CHECK(account_status IN ('active','inactive')), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);

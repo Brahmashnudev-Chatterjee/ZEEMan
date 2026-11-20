@@ -1,0 +1,59 @@
+[build]
+  command = "npm ci"
+  publish = "frontend"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["express", "sqlite3", "pg"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/forgot-password"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/reset-password"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/verify-email"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/onboarding"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/dashboard"
+  to = "/admin/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/user/dashboard"
+  to = "/user/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
