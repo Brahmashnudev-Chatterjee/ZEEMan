@@ -1,3 +1,4 @@
+process.env.ZEEMAN_NETLIFY = 'true';
 const serverless = require('serverless-http');
 const app = require('../../backend/src/app');
 const { initializeDatabase } = require('../../backend/src/config/database');
