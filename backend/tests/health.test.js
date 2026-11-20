@@ -12,6 +12,13 @@ const { initializeDatabase, get, run } = require('../src/config/database');
 const uniqueEmail = () => `test-${Date.now()}-${Math.random().toString(16).slice(2)}@example.test`;
 test.after(() => { for (const suffix of ['', '-shm', '-wal']) { try { fs.unlinkSync(`${testDb}${suffix}`); } catch (_) {} } });
 test('health endpoint responds', async () => { const response = await request(app).get('/api/health'); assert.equal(response.status, 200); assert.equal(response.body.status, 'ok'); });
+test('PostgreSQL adapter translates SQLite placeholders and date helpers', () => {
+  const { _postgres } = require('../src/config/database');
+  assert.equal(
+    _postgres.translateSql("SELECT MAX(onboarding_step, 2) FROM tasks WHERE user_id=? AND due_date < date('now') AND updated_at > datetime('now')"),
+    'SELECT GREATEST(onboarding_step, 2) FROM tasks WHERE user_id=$1 AND due_date < CURRENT_DATE AND updated_at > CURRENT_TIMESTAMP'
+  );
+});
 test('public contact form accepts valid submissions and rejects incomplete input', async () => {
   await initializeDatabase();
   const accepted = await request(app).post('/api/contact').set('Origin', 'http://localhost:3000').send({ name: 'Website Visitor', email: 'visitor@example.test', subject: 'Interested in ZeeMan', message: 'Please tell me more about project collaboration.' });

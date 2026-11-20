@@ -195,7 +195,7 @@ All endpoints below require the `admin` role.
 npm test
 ```
 
-The current suite has **7 passing API tests**. It verifies health, contact validation, registration/login/logout, role-forging prevention, dashboard RBAC, SQLite writes, private-task isolation, project-member access, and single-use password resets.
+The current suite has **8 passing API tests**. It verifies health, PostgreSQL SQL translation, contact validation, registration/login/logout, role-forging prevention, dashboard RBAC, SQLite writes, private-task isolation, project-member access, and single-use password resets.
 
 Docker persistence was verified by restarting the backend with its named volume intact; stored contact records remained available.
 
@@ -203,13 +203,14 @@ Docker persistence was verified by restarting the backend with its named volume 
 
 ZeeMan can be deployed as a full-stack Netlify site. The included `netlify.toml` publishes `frontend/`, rewrites browser routes to their matching static shell, and rewrites `/api/*` to `netlify/functions/api.js`. The function wraps the existing Express application with `serverless-http`.
 
-For durable Netlify data, ZeeMan switches from local SQLite to Netlify Database (PostgreSQL) when `NETLIFY` or `NETLIFY_DB_URL` is available. The production schema is in `netlify/database/migrations/0001_zeeman_schema.sql`; Netlify applies this migration before publishing a deploy.
+For durable Netlify data, ZeeMan switches from local SQLite to PostgreSQL whenever it runs in a Netlify Function or receives `DATABASE_URL`. It never silently uses SQLite in a Netlify Function. The production schema is in `netlify/database/migrations/0001_zeeman_schema.sql`; Netlify tracks and applies this migration before publishing a deploy only after a database has been provisioned and linked.
 
 1. Push this repository to GitHub and import it into Netlify.
 2. Keep the base directory empty, publish directory as `frontend`, and functions directory as `netlify/functions` (the checked-in `netlify.toml` sets these values).
-3. Create a Netlify Database in **Data & Storage**. Do not copy its connection string into source control.
-4. Add production environment variables in Netlify: `JWT_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `APP_ORIGIN` (your exact Netlify URL/custom domain), `COOKIE_SECURE=true`, `EMAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`.
-5. Deploy. Test `/api/health`, registration, login, and a task creation with a new test account.
+3. In **Data & Storage**, create and link a Netlify Database to this site. A migration file by itself does not create a database. Netlify Database requires a credit-based Netlify plan; check the Dashboard for the current Free-plan credit allowance and whether your account needs billing setup before enabling it.
+4. Let the Function use Netlify's managed connection automatically, or set `DATABASE_URL` in the Netlify UI with **Functions** scope to a supported PostgreSQL connection string. Do not set it in `netlify.toml`, commit it, or expose it to the browser. Do not set `DATABASE_URL` for local SQLite/Docker development.
+5. Add production environment variables in Netlify with **Functions** scope: `JWT_SECRET`, `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `APP_ORIGIN` (your exact Netlify URL/custom domain), `COOKIE_SECURE=true`, `EMAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM`.
+6. Redeploy after changing environment variables. Confirm the database migration completed in the deploy log, then test `/api/health`, registration, login, and a task creation with a new test account.
 
 Do not set `DEVELOPMENT_EMAIL_TRANSPORT=true` in Netlify production. The Netlify database migration is PostgreSQL-specific; Docker/local development continues to use SQLite.
 
