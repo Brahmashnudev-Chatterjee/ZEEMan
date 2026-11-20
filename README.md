@@ -1,23 +1,88 @@
-# ZeeMan — Smart Task Manager
+# ZeeMan — Smart Project & Task Manager
 
-ZeeMan is a responsive role-based task manager built with HTML5, CSS3, vanilla JavaScript, Node.js, Express, and SQLite. It provides separate administrator and user dashboards with backend-enforced access control.
+ZeeMan is a role-based project and task management application. The frontend uses HTML5, CSS3, and vanilla JavaScript. The backend is Node.js, Express, and SQLite. Nginx and Docker Compose run the application locally.
 
-## Collaborative project MVP
+## What is built
 
-- Projects with owners, deadlines, statuses, progress, and secure project membership.
-- Private tasks plus shared project tasks, with membership checks enforced by Express and SQLite queries.
-- Project-aware task assignment, Kanban, calendar, search, categories, dashboards, and analytics.
-- Project membership creates in-app assignment/membership notifications and activity records.
+- Public website: Home, Features, How it works, About, Contact, Privacy, and Terms.
+- Separate Admin and User dashboards.
+- Registration, login, logout, password change, JWT cookie sessions, and server-side session revocation.
+- Admin/user role-based access control, protected APIs, and exact-origin protection for API writes.
+- User, category, project, project-member, and task CRUD APIs.
+- Private tasks and securely shared project tasks with backend membership checks.
+- Task priorities, statuses, deadlines, search/filtering, Kanban updates, calendar, and core analytics.
+- Password reset request/reset with one-time hashed tokens and session revocation.
+- Email verification token generation, verification, and resend API.
+- Onboarding persistence for a profile, first project, first task, and completion state.
+- SQLite persistence, Docker secrets, a private Docker network, Nginx proxying, and health checks.
 
-Phase 2 delivers the public ZeeMan website and will next add comments, subtasks, and notification UI. Phase 3 will add milestones, dependencies, recurring tasks, time tracking, and Gantt planning.
+## How it works
 
-## Public website
+1. The public site at `/` links to `/login` and `/register`.
+2. Public registration always creates a `user`; a browser payload cannot create an administrator.
+3. Login issues an HttpOnly, SameSite=Strict JWT cookie linked to a session record in SQLite.
+4. Every protected API call validates the JWT, session status, account status, role, and ownership/project membership.
+5. Users access only their private tasks plus authorised shared-project tasks. Admins manage all records.
+6. New users are sent to `/onboarding`; revisiting onboarding updates the saved onboarding project/task instead of duplicating them.
+7. Nginx serves the frontend at port `8080` and proxies `/api/*` to the private Express backend.
 
-The public site is available at `/` with dedicated Features, How it works, About, Contact, Privacy, and Terms pages. The responsive navigation links to the existing secure sign-in and registration flows.
+## Architecture
 
-The contact form sends validated messages to `POST /api/contact`; submissions are stored in the SQLite database rather than shown as a dummy success state.
+```text
+Browser → Nginx frontend container → Express backend container → SQLite database
+          localhost:8080              private network             zeeman-data volume
+```
 
-## Start locally
+## Project structure
+
+```text
+ZeeMan/
+├── frontend/
+│   ├── index.html, login.html
+│   ├── admin/dashboard.html, user/dashboard.html
+│   ├── assets/zeeman-logo.png
+│   ├── css/styles.css
+│   ├── js/public.js, js/app.js
+│   ├── nginx.conf
+│   └── Dockerfile
+├── backend/
+│   ├── src/
+│   │   ├── config/                 # env and SQLite migrations
+│   │   ├── controllers/            # auth, tasks, projects, admin, onboarding
+│   │   ├── middleware/auth.js      # JWT/session/RBAC checks
+│   │   ├── routes/index.js         # REST API
+│   │   ├── services/email.service.js
+│   │   └── app.js, server.js
+│   ├── tests/health.test.js
+│   └── Dockerfile
+├── docs/
+├── scripts/
+├── compose.yaml
+├── .env.example
+└── README.md
+```
+
+## Run the application
+
+### Docker (recommended)
+
+```powershell
+npm install
+npm run docker:secrets
+docker compose up -d --build
+docker compose ps
+```
+
+Open http://localhost:8080.
+
+```powershell
+docker compose logs -f
+docker compose down
+```
+
+`docker compose down` keeps the named `zeeman-data` volume. Do not run `docker compose down -v` unless you deliberately want to delete the database.
+
+### Local Node development
 
 ```powershell
 npm install
@@ -25,42 +90,121 @@ npm run setup
 npm start
 ```
 
-Open `http://localhost:3000`. Setup creates local configuration, generates a JWT secret if needed, and provisions an administrator.
+Open http://localhost:3000.
 
-## Docker
+## Environment variables
 
-ZeeMan uses Nginx, Express, a private `zeeman-network`, a persistent `zeeman-data` volume, and locally mounted Docker secrets.
+Copy `.env.example` for local Node development. Docker uses local secret files for the JWT secret and initial administrator account.
 
-```powershell
-npm run docker:secrets
-docker compose up -d --build
-docker compose ps
-```
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_PATH` | SQLite location |
+| `APP_ORIGIN` | Browser origin allowed to write to the API |
+| `COOKIE_SECURE` | Set `true` when HTTPS is enabled |
+| `JWT_SECRET` / `JWT_SECRET_FILE` | JWT signing secret |
+| `ADMIN_*` / `ADMIN_*_FILE` | Initial administrator bootstrap values |
+| `EMAIL_TRANSPORT` | `console` locally or `smtp` for actual delivery |
+| `DEVELOPMENT_EMAIL_TRANSPORT` | Explicitly enables localhost console mail links |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | SMTP configuration |
+| `EMAIL_FROM` | Sender address |
 
-Open `http://localhost:8080`. The backend stays private to the Compose network, while Nginx proxies browser API requests.
+### Local email testing
 
-Use `docker compose down` to stop containers without deleting data. Avoid `docker compose down -v` unless you intentionally want to erase the SQLite database.
+Compose uses an explicitly labelled console transport. Reset/verification URLs appear in backend logs and the development-only response mechanism. Configure SMTP before public deployment, and never enable `DEVELOPMENT_EMAIL_TRANSPORT` publicly.
+
+## Browser routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Public ZeeMan website |
+| `/login` | Sign in |
+| `/register` | Register a regular user |
+| `/forgot-password` | Password-reset request |
+| `/reset-password?token=...` | Set new password |
+| `/verify-email?token=...` | Verify email |
+| `/onboarding` | First-user setup |
+| `/admin/dashboard` | Administrator workspace |
+| `/user/dashboard` | User workspace |
+
+## REST API
+
+All request bodies are JSON. Browsers use the secure cookie session; non-browser clients may use `Authorization: Bearer <JWT>`.
+
+### Public and authentication
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Health status |
+| `POST` | `/api/contact` | Save contact form |
+| `POST` | `/api/auth/register` | Create regular user |
+| `POST` | `/api/auth/login` | Create session |
+| `POST` | `/api/auth/logout` | Revoke current session |
+| `GET` | `/api/auth/me` | Current user |
+| `PUT` | `/api/auth/profile` | Update own profile |
+| `PUT` | `/api/auth/password` | Change password |
+| `POST` | `/api/auth/forgot-password` | Request reset instructions |
+| `POST` | `/api/auth/reset-password` | Consume reset token |
+| `POST` | `/api/auth/verify-email` | Consume verification token |
+| `POST` | `/api/auth/resend-verification` | Create verification token |
+
+### Onboarding, projects, tasks
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `GET` | `/api/auth/onboarding` | Signed-in user |
+| `PUT` | `/api/auth/onboarding/profile` | Signed-in user |
+| `POST` | `/api/auth/onboarding/project` | Signed-in user |
+| `POST` | `/api/auth/onboarding/task` | Signed-in user |
+| `POST` | `/api/auth/onboarding/complete` | Signed-in user |
+| `GET/POST` | `/api/projects` | Accessible projects / create |
+| `GET/PUT/DELETE` | `/api/projects/:id` | Authorised member/owner/admin |
+| `GET/POST` | `/api/projects/:id/members` | Read / owner-admin management |
+| `DELETE` | `/api/projects/:id/members/:userId` | Owner or admin |
+| `GET/POST` | `/api/tasks` | Accessible tasks / create |
+| `GET/PUT/DELETE` | `/api/tasks/:id` | Authorised access |
+| `GET` | `/api/categories` | Signed-in user |
+| `GET` | `/api/analytics/user` | Personal analytics |
+
+### Administration
+
+All endpoints below require the `admin` role.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/admin/users` | List/create users |
+| `GET/PUT/DELETE` | `/api/admin/users/:id` | Manage a user |
+| `GET/POST` | `/api/admin/tasks` | Manage all tasks |
+| `PUT/DELETE` | `/api/admin/tasks/:id` | Manage one task |
+| `POST` | `/api/admin/categories` | Create category |
+| `PUT/DELETE` | `/api/admin/categories/:id` | Manage category |
+| `GET` | `/api/admin/analytics` | Global analytics and activity |
 
 ## Security
 
-- bcrypt password hashes and 12-character password policy
-- HttpOnly, SameSite=Strict cookie sessions with server-side revocation
-- RBAC and SQL ownership checks
-- Exact allowed-origin checks on API writes
-- Helmet, parameterized SQL, rate-limited authentication, and Docker Secrets
-- One-time, hashed password-reset and email-verification tokens with a one-hour expiry
-- SMTP configuration through environment variables; local Compose uses an explicitly labelled console-only development mail transport
+- bcrypt password hashing; plaintext passwords are never saved.
+- Passwords require 12+ characters with uppercase, lowercase, and a number.
+- HttpOnly, SameSite=Strict cookies and server-side session validation/revocation.
+- One-time random reset/verification tokens are SHA-256 hashed before storage and expire after one hour.
+- A successful password reset revokes every existing session and outstanding reset token.
+- Role checks, parameterised queries, protected admin routes, rate limits, Helmet, and exact-Origin write checks.
+- Backend checks task ownership and project membership; hiding a button never grants access.
 
-## Account recovery and onboarding
-
-Use `/forgot-password` to request a reset link and `/reset-password?token=...` to choose a new password. In local Docker development, verification and reset URLs are emitted by the console transport; configure `EMAIL_TRANSPORT=smtp` and the `SMTP_*` variables before any public deployment.
-
-New accounts are directed to `/onboarding`, where profile, first project, and first task records are saved without duplicating them when a step is revisited.
-
-## Tests
+## Testing
 
 ```powershell
 npm test
 ```
 
-The test suite uses a temporary database and validates health, authentication, role boundaries, and task ownership.
+The current suite has **7 passing API tests**. It verifies health, contact validation, registration/login/logout, role-forging prevention, dashboard RBAC, SQLite writes, private-task isolation, project-member access, and single-use password resets.
+
+Docker persistence was verified by restarting the backend with its named volume intact; stored contact records remained available.
+
+## Current limitations / next work
+
+- SMTP must be configured for real production email delivery.
+- Browser-level Playwright E2E tests are not yet installed.
+- The resend-verification control and full onboarding date fields still need UI completion.
+- Comments, subtasks, notification inbox, milestones, dependencies, recurring tasks, time tracking, Gantt charts, exports, Docker Hub publishing, and Azure deployment are future phases.
+- SQLite is appropriate for one backend replica; move to PostgreSQL before scaling to multiple backend replicas.
+
+Never commit `.env`, Docker secret files, reset URLs, or SMTP credentials.
