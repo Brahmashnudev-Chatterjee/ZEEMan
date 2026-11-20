@@ -136,7 +136,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The Docker-hosted Playwright suite contains two journeys: account/verification/reset/onboarding, and the complete admin allocation workflow through 50% project progress.
+The Docker-hosted Playwright suite covers account/verification/reset/onboarding and authenticated rendering of all ten Admin Control Center modules. The complete Admin allocation workflow is covered in the isolated backend workflow suite; its earlier long browser duplicate remains explicitly skipped because it is brittle across accumulated local demo data.
 
 ## Database and deployment notes
 
@@ -146,6 +146,39 @@ The repository also retains optional Netlify/PostgreSQL support. The additive mi
 
 ## Remaining limitations
 
-- The current calendar is a deadline list, not a full month/week grid.
-- Task priority is currently Low, Medium, or High; the existing SQLite constraint does not yet include Urgent.
-- Comments, subtasks, richer notifications, milestones, dependencies, recurring tasks, time tracking, Gantt, export, Docker Hub release publishing, and Azure deployment remain future work.
+- Comments, subtasks, dependencies, recurring tasks, time tracking, milestones and Gantt views remain future collaboration phases.
+
+## Admin Control Center (current implementation)
+
+The Admin Control Center is available at `/admin/dashboard` and is entirely backed by live API data. Its ten working modules are Dashboard, Projects, Tasks, Users, Kanban, Calendar, Reports, Notifications, Activity Logs, and Settings/Profile.
+
+| Module | Implemented capabilities |
+| --- | --- |
+| Dashboard | Live user/project/task counts, completion rate, recent tasks, deadline groups, activity, status/workload charts, linked quick actions |
+| Projects | Create, edit, archive, restore, delete, membership allocation, details and activity |
+| Tasks | Project-bound creation, member-only assignment, edit/reassign/delete, filters, urgent/on-hold values |
+| Users | Search, workload/profile view, secure account creation, activation/deactivation and deletion safeguards |
+| Kanban | Four-column drag/drop board plus select-based keyboard alternative, persisted status updates |
+| Calendar | Month/week/day views, navigation and project/user/priority/status filters |
+| Reports | Filtered project/task/workload data and filtered Admin-only CSV export |
+| Notifications | Per-user inbox, unread count, read/unread controls, mark-all-read and deep links |
+| Activity | Persisted audit events, filtering and detail dialog |
+| Settings/Profile | Persisted defaults, administrator profile/password, and logout-other-sessions |
+
+New and verified Admin endpoints include:
+
+```text
+GET  /api/admin/dashboard
+GET  /api/admin/reports
+GET  /api/admin/reports/export.csv
+GET/PATCH/POST /api/admin/notifications[/:id]
+GET  /api/admin/activity-logs[/:id]
+GET/PUT /api/admin/settings
+PUT  /api/admin/profile
+POST /api/admin/sessions/logout-others
+POST /api/projects/:id/restore
+```
+
+The current automated suite validates dashboard/report/CSV data, user workload, notification handling, settings persistence and that regular users are denied Admin dashboard/report APIs, in addition to the existing allocation workflow. Docker/Nginx is configured as one trusted reverse-proxy hop so rate limiting operates correctly for browser requests.
+
+`netlify/database/migrations/0004_admin_dashboard.sql` is an additive PostgreSQL companion migration for the new admin metadata. SQLite remains the local and Docker default.

@@ -7,6 +7,9 @@ const path = require('path');
 const env = require('./config/env');
 const routes = require('./routes');
 const app = express();
+// Docker/Nginx is the single reverse proxy in front of the API.  This lets
+// rate limiting identify browser clients without trusting arbitrary proxy chains.
+app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({ origin: env.appOrigin, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '100kb' }));
@@ -22,7 +25,7 @@ app.use(express.static(frontend));
 app.get('/login', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
 app.get('/register', (_, res) => res.sendFile(path.join(frontend, 'login.html')));
 app.get(['/forgot-password', '/reset-password', '/verify-email', '/onboarding'], (_, res) => res.sendFile(path.join(frontend, 'login.html')));
-app.get(['/admin/dashboard', '/admin/projects', '/admin/projects/:id', '/admin/kanban', '/admin/calendar'], (_, res) => res.sendFile(path.join(frontend, 'admin/dashboard.html')));
+app.get(['/admin/dashboard', '/admin/projects', '/admin/projects/:id', '/admin/tasks', '/admin/users', '/admin/users/:id', '/admin/kanban', '/admin/calendar', '/admin/reports', '/admin/notifications', '/admin/activity-logs', '/admin/settings', '/admin/profile'], (_, res) => res.sendFile(path.join(frontend, 'admin/dashboard.html')));
 app.get(['/user/dashboard', '/user/projects', '/user/projects/:id', '/user/my-tasks', '/user/tasks/:id', '/user/kanban', '/user/calendar'], (_, res) => res.sendFile(path.join(frontend, 'user/dashboard.html')));
 app.get(['/features', '/how-it-works', '/about', '/contact', '/privacy', '/terms', '/404'], (_, res) => res.sendFile(path.join(frontend, 'index.html')));
 app.use((req, res) => res.status(404).json({ message: 'Route not found.' }));

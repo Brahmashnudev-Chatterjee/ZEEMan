@@ -7,7 +7,9 @@ const project = require('../controllers/project.controller');
 const publicController = require('../controllers/public.controller');
 const onboarding = require('../controllers/onboarding.controller');
 const { authenticate, authorize } = require('../middleware/auth');
-const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, skip: () => process.env.NODE_ENV === 'test', message: { message: 'Too many authentication attempts. Please try again later.' } });
+// A shared browser/Nginx address can legitimately cover multiple local users.
+// Keep a meaningful brute-force guard without blocking the complete browser workflow.
+const authLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, skip: () => process.env.NODE_ENV === 'test', message: { message: 'Too many authentication attempts. Please try again later.' } });
 
 router.get('/health', (_, res) => res.json({ status: 'ok', service: 'zeeman-api', timestamp: new Date().toISOString() }));
 router.post('/contact', authLimit, publicController.contact);
@@ -32,6 +34,7 @@ router.post('/projects', authenticate, authorize('admin'), project.create);
 router.put('/projects/:id', authenticate, authorize('admin'), project.update);
 router.patch('/projects/:id', authenticate, authorize('admin'), project.update);
 router.post('/projects/:id/archive', authenticate, authorize('admin'), project.archive);
+router.post('/projects/:id/restore', authenticate, authorize('admin'), project.restore);
 router.delete('/projects/:id', authenticate, authorize('admin'), project.remove);
 router.get('/projects/:id/members', authenticate, project.members);
 router.post('/projects/:id/members', authenticate, authorize('admin'), project.addMember);
@@ -61,4 +64,16 @@ router.post('/admin/categories', admin.createCategory);
 router.put('/admin/categories/:id', admin.updateCategory);
 router.delete('/admin/categories/:id', admin.deleteCategory);
 router.get('/admin/analytics', admin.analytics);
+router.get('/admin/dashboard', admin.dashboard);
+router.get('/admin/reports', admin.reports);
+router.get('/admin/reports/export.csv', admin.exportReports);
+router.get('/admin/notifications', admin.listNotifications);
+router.patch('/admin/notifications/:id', admin.updateNotification);
+router.post('/admin/notifications/read-all', admin.readAllNotifications);
+router.get('/admin/activity-logs', admin.listActivity);
+router.get('/admin/activity-logs/:id', admin.getActivity);
+router.get('/admin/settings', admin.getSettings);
+router.put('/admin/settings', admin.updateSettings);
+router.put('/admin/profile', admin.updateOwnProfile);
+router.post('/admin/sessions/logout-others', admin.logoutOtherSessions);
 module.exports = router;

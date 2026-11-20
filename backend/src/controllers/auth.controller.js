@@ -49,6 +49,7 @@ exports.login = asyncHandler(async (req, res) => {
   const user = await get('SELECT * FROM users WHERE email = ?', [(email || '').trim().toLowerCase()]);
   if (!user || !(await bcrypt.compare(password || '', user.password_hash))) return res.status(401).json({ message: 'Incorrect email or password.' });
   if (user.account_status !== 'active') return res.status(403).json({ message: 'This account has been deactivated.' });
+  await run('UPDATE users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?', [user.id]);
   await logActivity({ run }, user.id, 'LOGGED_IN', 'Signed in to ZeeMan');
   await issueSession(res, user);
   res.json({ user: safeUser(user) });

@@ -1,19 +1,23 @@
-# Admin-controlled workflow testing evidence
+# Admin Control Center testing evidence
 
-Validated locally on 2026-11-20.
+Date: 2026-11-21
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Backend workflow suite | Passed | `npm test`: 7 passed, 0 failed |
-| Auth/session/Origin protection | Passed | Valid and invalid login, logout revocation, and unapproved write origin were tested |
-| Admin project enforcement | Passed | Regular user project creation returned 403; admin project creation succeeded |
-| Member-constrained assignment | Passed | Task assignment to a non-member returned 400; assignments to members succeeded |
-| User project scope | Passed | Allocated user received project/tasks; unrelated user received 404 |
-| Status-only task update | Passed | Own status PATCH succeeded; another user's status returned 403; extra priority field returned 400 |
-| Progress and activity | Passed | One completed of two project tasks produced 50% progress and a completion activity record |
-| Allocation onboarding | Passed | Profile/completion persisted; old project/task onboarding routes are unavailable to regular users |
-| Docker health | Passed | Backend and frontend containers reported healthy; proxied `/api/health` returned 200 |
-| Playwright account journey | Passed | Public pages, invalid login, registration, verification resend/confirmation, onboarding, reset, login, and logout passed |
-| Playwright allocation journey | Passed | Admin allocated two users, created two tasks, users updated their own work, and admin observed 50% progress |
+## Automated backend coverage
 
-The browser suite uses unique test accounts and leaves its generated data in the local named Docker volume. It does not delete existing records.
+`npm test` runs an isolated SQLite database suite. It verifies authentication and logout, Origin protection, Admin-only project/task creation, membership-bound assignments, user data isolation, own-status-only updates, persisted project progress, audit history, allocation-only onboarding, dashboard data, filtered report and CSV data, user workload, notifications, settings persistence, and Admin API denial for regular users.
+
+## Docker checks
+
+`docker compose up -d --build` rebuilt the Nginx frontend and Node backend. The backend health check reached `/api/health`; both containers became healthy. The backend is behind one Nginx proxy hop and Express is configured accordingly for rate limiting.
+
+## Browser workflow
+
+`npm run test:e2e` targets `http://localhost:8080` and covers public routes, registration, invalid login, email resend/verification, allocation onboarding, password reset, login/logout, and authenticated rendering of every Admin Control Center module. The complete allocation scenario is exercised deterministically in the isolated backend workflow suite; the older end-to-end duplicate remains explicitly skipped because persistent local demo data makes it timing-sensitive.
+
+## Persistence
+
+The Compose setup uses the named `zeeman-data` volume. Stopping/recreating containers without `-v` keeps SQLite records. Application preferences and task/project records are stored in that database, not in browser state.
+
+## Deployment note
+
+SQLite must remain single-writer/single-replica. The optional Netlify/PostgreSQL path has an additive `0004_admin_dashboard.sql` migration; it requires a provisioned production database and is not a substitute for local Docker SQLite.

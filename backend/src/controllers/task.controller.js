@@ -1,8 +1,10 @@
 const { get, all, run } = require('../config/database');
-const { asyncHandler, logActivity } = require('../utils/http');
-const validStatus = ['pending', 'in_progress', 'completed', 'cancelled'];
-const validPriority = ['low', 'medium', 'high'];
-const taskSelect = `SELECT t.*, u.name AS user_name, c.name AS category_name, p.name AS project_name, p.owner_user_id AS project_owner_id FROM tasks t JOIN users u ON u.id=t.user_id LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN projects p ON p.id=t.project_id`;
+const { asyncHandler, logActivity, createNotification } = require('../utils/http');
+const validStatus = ['pending', 'in_progress', 'on_hold', 'completed', 'cancelled'];
+const validPriority = ['low', 'medium', 'high', 'urgent'];
+const taskSelect = `SELECT t.*, CASE WHEN t.is_urgent=1 THEN 'urgent' ELSE t.priority END AS priority, CASE WHEN t.is_on_hold=1 THEN 'on_hold' ELSE t.status END AS status, u.name AS user_name, c.name AS category_name, p.name AS project_name, p.owner_user_id AS project_owner_id FROM tasks t JOIN users u ON u.id=t.user_id LEFT JOIN categories c ON c.id=t.category_id LEFT JOIN projects p ON p.id=t.project_id`;
+const storagePriority = (priority) => ({ priority: priority === 'urgent' ? 'high' : priority, isUrgent: priority === 'urgent' ? 1 : 0 });
+const storageStatus = (status) => ({ status: status === 'on_hold' ? 'cancelled' : status, isOnHold: status === 'on_hold' ? 1 : 0 });
 // Regular users work only on projects to which an administrator allocated them.
 // Legacy personal tasks remain in the database for a deliberate migration, but are
 // intentionally not exposed through the allocation-based workspace.
@@ -27,8 +29,8 @@ exports.list = asyncHandler(async (req, res) => {
   if (req.user.role !== 'admin') { conditions.push(`(${accessCondition})`); params.push(req.user.id); }
   if (assigned_to_me === 'true') { conditions.push('t.user_id=?'); params.push(req.user.id); }
   if (search) { conditions.push('(t.title LIKE ? OR t.description LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
-  if (status && validStatus.includes(status)) { conditions.push('t.status=?'); params.push(status); }
-  if (priority && validPriority.includes(priority)) { conditions.push('t.priority=?'); params.push(priority); }
+  if (status && validStatus.includes(status)) { if (status === 'on_hold') conditions.push('t.is_on_hold=1'); else { conditions.push('t.status=? AND t.is_on_hold=0'); params.push(status); } }
+  if (priority && validPriority.includes(priority)) { if (priority === 'urgent') conditions.push('t.is_urgent=1'); else { conditions.push('t.priority=? AND t.is_urgent=0'); params.push(priority); } }
   if (category_id) { conditions.push('t.category_id=?'); params.push(category_id); }
   if (project_id) { conditions.push('t.project_id=?'); params.push(project_id); }
   const sorts = { due_date: 't.due_date', created_at: 't.created_at', priority: "CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END", updated_at: 't.updated_at' };
@@ -43,11 +45,12 @@ exports.create = asyncHandler(async (req, res) => {
   const categoryId = req.body.category_id || null; if (categoryId && !await get('SELECT id FROM categories WHERE id=?', [categoryId])) return res.status(400).json({ message: 'Category does not exist.' });
   const projectId = Number(req.body.project_id);
   try { await assertProjectAccess(req, projectId, userId); } catch (projectError) { return res.status(projectError.status || 400).json({ message: projectError.message }); }
-  const status = req.body.status || 'pending';
-  const result = await run('INSERT INTO tasks (title, description, user_id, category_id, project_id, priority, status, start_date, due_date, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.body.title.trim(), (req.body.description || '').trim(), userId, categoryId, projectId, req.body.priority || 'medium', status, req.body.start_date || null, req.body.due_date || null, status === 'completed' ? new Date().toISOString() : null]);
-  if (userId !== req.user.id) await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [userId, 'task_assigned', `You were assigned: ${req.body.title.trim()}`]);
+  const requestedStatus = req.body.status || 'pending'; const requestedPriority = req.body.priority || 'medium';
+  const status = storageStatus(requestedStatus); const priority = storagePriority(requestedPriority);
+  const result = await run('INSERT INTO tasks (title, description, user_id, category_id, project_id, priority, is_urgent, status, is_on_hold, start_date, due_date, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [req.body.title.trim(), (req.body.description || '').trim(), userId, categoryId, projectId, priority.priority, priority.isUrgent, status.status, status.isOnHold, req.body.start_date || null, req.body.due_date || null, requestedStatus === 'completed' ? new Date().toISOString() : null]);
+  if (userId !== req.user.id) await createNotification({ run }, { userId, type: 'task_assigned', message: `You were assigned: ${req.body.title.trim()}`, linkPath: `/user/tasks/${result.id}`, entityType: 'task', entityId: result.id });
   const created = await get(`${taskSelect} WHERE t.id=?`, [result.id]);
-  await logActivity({ run }, req.user.id, 'TASK_CREATED', `Created task: ${req.body.title.trim()} in ${created.project_name}`);
+  await logActivity({ run }, req.user.id, 'TASK_CREATED', `Created task: ${req.body.title.trim()} in ${created.project_name}`, { entityType: 'task', entityId: result.id, projectId, metadata: { assigneeId: userId } });
   res.status(201).json({ task: created });
 });
 exports.update = asyncHandler(async (req, res) => {
@@ -56,11 +59,11 @@ exports.update = asyncHandler(async (req, res) => {
   const userId = req.user.role === 'admin' && req.body.user_id ? Number(req.body.user_id) : task.user_id;
   const projectId = req.user.role === 'admin' && Object.hasOwn(req.body, 'project_id') ? (req.body.project_id || null) : task.project_id;
   try { await assertProjectAccess(req, projectId, userId); } catch (projectError) { return res.status(projectError.status || 400).json({ message: projectError.message }); }
-  const status = input.status; const completedAt = status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
-  await run('UPDATE tasks SET title=?, description=?, user_id=?, category_id=?, project_id=?, priority=?, status=?, start_date=?, due_date=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [input.title.trim(), input.description || '', userId, input.category_id || null, projectId, input.priority, status, input.start_date || null, input.due_date || null, completedAt, task.id]);
-  if (userId !== task.user_id) await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [userId, 'task_assigned', `You were assigned: ${input.title.trim()}`]);
+  const status = storageStatus(input.status); const priority = storagePriority(input.priority); const completedAt = input.status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
+  await run('UPDATE tasks SET title=?, description=?, user_id=?, category_id=?, project_id=?, priority=?, is_urgent=?, status=?, is_on_hold=?, start_date=?, due_date=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [input.title.trim(), input.description || '', userId, input.category_id || null, projectId, priority.priority, priority.isUrgent, status.status, status.isOnHold, input.start_date || null, input.due_date || null, completedAt, task.id]);
+  if (userId !== task.user_id) await createNotification({ run }, { userId, type: 'task_reassigned', message: `You were assigned: ${input.title.trim()}`, linkPath: `/user/tasks/${task.id}`, entityType: 'task', entityId: task.id });
   const updated = await get(`${taskSelect} WHERE t.id=?`, [task.id]);
-  await logActivity({ run }, req.user.id, 'TASK_UPDATED', `Updated task: ${input.title.trim()} in ${updated.project_name}`);
+  await logActivity({ run }, req.user.id, userId !== task.user_id ? 'TASK_REASSIGNED' : 'TASK_UPDATED', `Updated task: ${input.title.trim()} in ${updated.project_name}`, { entityType: 'task', entityId: task.id, projectId, metadata: { assigneeId: userId } });
   res.json({ task: updated });
 });
 exports.updateStatus = asyncHandler(async (req, res) => {
@@ -69,10 +72,11 @@ exports.updateStatus = asyncHandler(async (req, res) => {
   const keys = Object.keys(req.body || {});
   if (keys.length !== 1 || keys[0] !== 'status') return res.status(400).json({ message: 'Only the status field may be updated here.' });
   if (!validStatus.includes(req.body.status)) return res.status(400).json({ message: 'Invalid task status.' });
-  const completedAt = req.body.status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
-  await run('UPDATE tasks SET status=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [req.body.status, completedAt, task.id]);
-  await logActivity({ run }, req.user.id, req.body.status === 'completed' ? 'TASK_COMPLETED' : 'TASK_STATUS_UPDATED', `${req.user.name} updated task status: ${task.title} in ${task.project_name}`);
-  if (req.user.role !== 'admin' && req.body.status === 'completed') await run('INSERT INTO notifications (user_id, type, message) VALUES (?, ?, ?)', [task.project_owner_id, 'task_completed', `${req.user.name} completed: ${task.title}`]);
+  const next = storageStatus(req.body.status); const completedAt = req.body.status === 'completed' ? (task.completed_at || new Date().toISOString()) : null;
+  await run('UPDATE tasks SET status=?, is_on_hold=?, completed_at=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [next.status, next.isOnHold, completedAt, task.id]);
+  const action = req.body.status === 'completed' ? 'TASK_COMPLETED' : (task.status === 'completed' ? 'TASK_REOPENED' : 'TASK_STATUS_UPDATED');
+  await logActivity({ run }, req.user.id, action, `${req.user.name} updated task status: ${task.title} in ${task.project_name}`, { entityType: 'task', entityId: task.id, projectId: task.project_id, metadata: { from: task.status, to: req.body.status } });
+  if (req.user.role !== 'admin' && ['completed', 'pending', 'in_progress', 'on_hold'].includes(req.body.status)) await createNotification({ run }, { userId: task.project_owner_id, type: req.body.status === 'completed' ? 'task_completed' : 'task_status_updated', message: `${req.user.name} updated ${task.title} to ${req.body.status}`, linkPath: `/admin/projects/${task.project_id}`, entityType: 'task', entityId: task.id });
   res.json({ task: await get(`${taskSelect} WHERE t.id=?`, [task.id]) });
 });
 exports.remove = asyncHandler(async (req, res) => { const task = await scope(req, req.params.id); if (!task) return res.status(404).json({ message: 'Task not found.' }); if (req.user.role !== 'admin' && task.project_id && task.project_owner_id !== req.user.id && task.user_id !== req.user.id) return res.status(403).json({ message: 'Only the project owner or assigned user can delete this task.' }); await run('DELETE FROM tasks WHERE id=?', [task.id]); await logActivity({ run }, req.user.id, 'TASK_DELETED', `Deleted task: ${task.title} in ${task.project_name || 'a project'}`); res.status(204).end(); });

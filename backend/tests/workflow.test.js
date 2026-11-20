@@ -118,6 +118,38 @@ test('admin monitoring shows persisted assignments, progress, members, and activ
   assert.ok(activity.body.activity.some((entry) => entry.action === 'TASK_COMPLETED'));
 });
 
+test('admin dashboard, reporting, notification, settings, user, and audit APIs return persisted real data', async () => {
+  const dashboard = await admin.get('/api/admin/dashboard').expect(200);
+  assert.equal(dashboard.body.overview.total_projects >= 1, true);
+  assert.equal(dashboard.body.projects.some((project) => project.id === ids.project), true);
+  assert.equal(dashboard.body.recentTasks.some((task) => task.id === ids.taskA), true);
+
+  const report = await admin.get(`/api/admin/reports?project_id=${ids.project}&status=completed`).expect(200);
+  assert.equal(report.body.summary.total_tasks, 1);
+  assert.equal(report.body.tasks[0].id, ids.taskB);
+  const csv = await admin.get(`/api/admin/reports/export.csv?project_id=${ids.project}&status=completed`).expect(200);
+  assert.match(csv.headers['content-type'], /text\/csv/);
+  assert.match(csv.text, /Task B/);
+  assert.doesNotMatch(csv.text, /Task A/);
+
+  const userList = await admin.get('/api/admin/users?search=Allocated').expect(200);
+  assert.equal(userList.body.users.length >= 2, true);
+  const userDetail = await admin.get(`/api/admin/users/${userA.id}`).expect(200);
+  assert.equal(userDetail.body.workload.assigned_tasks, 1);
+
+  const settings = await json(admin, 'put', '/api/admin/settings', { default_task_priority: 'urgent', default_task_status: 'on_hold', timezone: 'Asia/Kolkata' }).expect(200);
+  assert.equal(settings.body.settings.default_task_priority, 'urgent');
+  assert.equal((await admin.get('/api/admin/settings').expect(200)).body.settings.timezone, 'Asia/Kolkata');
+
+  const notifications = await admin.get('/api/admin/notifications?limit=100').expect(200);
+  assert.equal(Array.isArray(notifications.body.notifications), true);
+  await admin.post('/api/admin/notifications/read-all').set('Origin', origin).expect(204);
+  const activity = await admin.get(`/api/admin/activity-logs?project_id=${ids.project}`).expect(200);
+  assert.ok(activity.body.activity.some((entry) => entry.action === 'TASK_COMPLETED'));
+  await userA.agent.get('/api/admin/dashboard').expect(403);
+  await userA.agent.get('/api/admin/reports').expect(403);
+});
+
 test('regular-user onboarding is allocation based and cannot create a project or task', async () => {
   const fresh = request.agent(app);
   await json(fresh, 'post', '/api/auth/register', { name: 'Waiting Allocation', email: unique('waiting'), password }).expect(201);
