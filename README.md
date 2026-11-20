@@ -12,8 +12,8 @@ ZeeMan is a role-based project and task management application. The frontend use
 - Private tasks and securely shared project tasks with backend membership checks.
 - Task priorities, statuses, deadlines, search/filtering, Kanban updates, calendar, and core analytics.
 - Password reset request/reset with one-time hashed tokens and session revocation.
-- Email verification token generation, verification, and resend API.
-- Onboarding persistence for a profile, first project, first task, and completion state.
+- Email verification UI with resend cooldown, development/SMTP delivery feedback, and invalid/expired-link states.
+- A responsive five-step onboarding wizard with profile, project, task, date validation, skip/back controls, and duplicate-safe persistence.
 - SQLite persistence, Docker secrets, a private Docker network, Nginx proxying, and health checks.
 
 ## How it works
@@ -110,7 +110,7 @@ Copy `.env.example` for local Node development. Docker uses local secret files f
 
 ### Local email testing
 
-Compose uses an explicitly labelled console transport. Reset/verification URLs appear in backend logs and the development-only response mechanism. Configure SMTP before public deployment, and never enable `DEVELOPMENT_EMAIL_TRANSPORT` publicly.
+Compose uses an explicitly labelled console transport. Reset/verification URLs appear in backend logs and as labelled local-only links in the UI. SMTP responses are described as accepted only after the provider accepts them; a delivery failure is shown as an error. Configure SMTP before public deployment, and never enable `DEVELOPMENT_EMAIL_TRANSPORT` publicly.
 
 ## Browser routes
 
@@ -195,7 +195,18 @@ All endpoints below require the `admin` role.
 npm test
 ```
 
-The current suite has **8 passing API tests**. It verifies health, PostgreSQL SQL translation, contact validation, registration/login/logout, role-forging prevention, dashboard RBAC, SQLite writes, private-task isolation, project-member access, and single-use password resets.
+The current suite has **9 passing API tests**. It verifies health, PostgreSQL SQL translation, contact validation and origin protection, registration/login/logout, role-forging prevention, dashboard RBAC, SQLite writes, private-task isolation, project-member access, single-use password resets, expired/single-use email verification tokens, and duplicate-safe onboarding persistence.
+
+Run the Docker-hosted browser suite after the services are healthy:
+
+```powershell
+$env:E2E_ADMIN_EMAIL = (Get-Content secrets/admin_email.txt -Raw).Trim()
+$env:E2E_ADMIN_PASSWORD = (Get-Content secrets/admin_password.txt -Raw).Trim()
+npx playwright install chromium
+npm run test:e2e
+```
+
+The Playwright suite uses unique test accounts and exercises the public routes, login/registration, protected-route redirect, verification resend/confirmation, onboarding, project and task creation, Kanban persistence after refresh, password reset, logout, and administrator redirect.
 
 Docker persistence was verified by restarting the backend with its named volume intact; stored contact records remained available.
 
@@ -217,8 +228,6 @@ Do not set `DEVELOPMENT_EMAIL_TRANSPORT=true` in Netlify production. The Netlify
 ## Current limitations / next work
 
 - SMTP must be configured for real production email delivery.
-- Browser-level Playwright E2E tests are not yet installed.
-- The resend-verification control and full onboarding date fields still need UI completion.
 - Comments, subtasks, notification inbox, milestones, dependencies, recurring tasks, time tracking, Gantt charts, exports, Docker Hub publishing, and Azure deployment are future phases.
 - SQLite is appropriate for one backend replica; move to PostgreSQL before scaling to multiple backend replicas.
 

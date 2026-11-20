@@ -113,8 +113,13 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
 });
 exports.resendVerification = asyncHandler(async (req, res) => {
   if (req.user.email_verified_at) return res.status(200).json({ message: 'Your email is already verified.' });
-  const delivery = await issueEmailToken(req.user);
-  res.status(202).json(delivery.delivery.development ? { message: 'Development verification link created.', development_url: delivery.link, development_notice: 'Development-only console email transport is active.' } : { message: 'Verification instructions were accepted by the email provider.' });
+  try {
+    const delivery = await issueEmailToken(req.user);
+    res.status(202).json(delivery.delivery.development ? { message: 'Development verification link created. Check the local server console.', development_url: delivery.link, development_notice: 'Development-only console email transport is active.' } : { message: 'Verification instructions were accepted by the email provider.' });
+  } catch (error) {
+    console.error('Verification email delivery failed:', error.message);
+    res.status(502).json({ message: 'We could not send verification instructions. Please try again shortly.' });
+  }
 });
 
 module.exports = { ...exports, cookieName, cookieOptions };

@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const bcrypt = require('bcryptjs');
 const testDb = path.join(os.tmpdir(), `zeeman-test-${process.pid}.db`);
+process.env.NODE_ENV = 'test';
 process.env.DATABASE_PATH = testDb;
 const request = require('supertest');
 const app = require('../src/app');
@@ -25,6 +26,8 @@ test('public contact form accepts valid submissions and rejects incomplete input
   assert.equal(accepted.status, 201);
   const rejected = await request(app).post('/api/contact').set('Origin', 'http://localhost:3000').send({ name: 'Website Visitor' });
   assert.equal(rejected.status, 400);
+  const foreignOrigin = await request(app).post('/api/contact').set('Origin', 'https://untrusted.example').send({ name: 'Website Visitor', email: 'visitor@example.test', subject: 'Origin check', message: 'This request must be rejected before it reaches the controller.' });
+  assert.equal(foreignOrigin.status, 403);
 });
 test('registration prevents role elevation and login/logout sessions are enforced', async () => {
   await initializeDatabase();
@@ -77,6 +80,35 @@ test('password reset tokens are hashed, expire safely, and can only be used once
   assert.equal((await request(app).post('/api/auth/reset-password').set('Origin', 'http://localhost:3000').send({ token, password: newPassword, password_confirmation: newPassword })).status, 400);
   assert.equal((await request(app).post('/api/auth/login').set('Origin', 'http://localhost:3000').send({ email, password: oldPassword })).status, 401);
   assert.equal((await request(app).post('/api/auth/login').set('Origin', 'http://localhost:3000').send({ email, password: newPassword })).status, 200);
+});
+test('email verification tokens expire, cannot be reused, and onboarding updates instead of duplicating records', async () => {
+  await initializeDatabase();
+  const agent = request.agent(app); const email = uniqueEmail(); const origin = 'http://localhost:3000';
+  assert.equal((await agent.post('/api/auth/register').set('Origin', origin).send({ name: 'Onboarding User', email, password: 'OnboardingPassword_2026' })).status, 201);
+  const first = await agent.post('/api/auth/resend-verification').set('Origin', origin);
+  assert.equal(first.status, 202);
+  const expiredToken = new URL(first.body.development_url).searchParams.get('token');
+  const stored = await get('SELECT token_hash FROM email_verification_tokens WHERE user_id=(SELECT id FROM users WHERE email=?)', [email]);
+  assert.notEqual(stored.token_hash, expiredToken);
+  await run("UPDATE email_verification_tokens SET expires_at='2000-01-01T00:00:00.000Z' WHERE user_id=(SELECT id FROM users WHERE email=?)", [email]);
+  assert.equal((await request(app).post('/api/auth/verify-email').set('Origin', origin).send({ token: expiredToken })).status, 400);
+  const second = await agent.post('/api/auth/resend-verification').set('Origin', origin);
+  const token = new URL(second.body.development_url).searchParams.get('token');
+  assert.equal((await request(app).post('/api/auth/verify-email').set('Origin', origin).send({ token })).status, 200);
+  assert.equal((await request(app).post('/api/auth/verify-email').set('Origin', origin).send({ token })).status, 400);
+  assert.ok((await agent.get('/api/auth/me')).body.user.email_verified_at);
+  assert.equal((await agent.put('/api/auth/onboarding/profile').set('Origin', origin).send({ name: 'Onboarding User', bio: 'Focused work', avatar_url: '' })).status, 200);
+  assert.equal((await agent.post('/api/auth/onboarding/project').set('Origin', origin).send({ name: 'First project', description: 'Initial workspace', start_date: '2026-01-01', due_date: '2026-02-01' })).status, 200);
+  assert.equal((await agent.post('/api/auth/onboarding/task').set('Origin', origin).send({ title: 'First task', description: 'Initial work item', priority: 'high', start_date: '2026-01-02', due_date: '2026-01-15' })).status, 200);
+  assert.equal((await agent.post('/api/auth/onboarding/project').set('Origin', origin).send({ name: 'First project updated', description: 'Updated', start_date: '2026-01-01', due_date: '2026-02-01' })).status, 200);
+  assert.equal((await agent.post('/api/auth/onboarding/task').set('Origin', origin).send({ title: 'First task updated', description: 'Updated work item', priority: 'medium', start_date: '2026-01-03', due_date: '2026-01-16' })).status, 200);
+  const status = await agent.get('/api/auth/onboarding');
+  assert.equal(status.body.onboarding.onboarding_project_name, 'First project updated');
+  assert.equal(status.body.onboarding.onboarding_task_title, 'First task updated');
+  assert.equal((await get('SELECT COUNT(*) AS count FROM projects WHERE owner_user_id=(SELECT id FROM users WHERE email=?)', [email])).count, 1);
+  assert.equal((await get('SELECT COUNT(*) AS count FROM tasks WHERE user_id=(SELECT id FROM users WHERE email=?)', [email])).count, 1);
+  assert.equal((await agent.post('/api/auth/onboarding/complete').set('Origin', origin)).status, 200);
+  assert.ok((await agent.get('/api/auth/me')).body.user.onboarding_completed_at);
 });
 test('regular users cannot access another user task or admin routes', async () => {
   await initializeDatabase();

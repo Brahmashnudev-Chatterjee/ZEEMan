@@ -1,0 +1,12 @@
+.form-status { min-height: 1.25rem; margin: .15rem 0 0; color: #475569; font-size: .86rem; line-height: 1.45; }
+.form-status:empty { display: none; }
+.form-status a { display: inline-block; margin-top: .3rem; }
+.onboarding-card label { display: grid; gap: .42rem; margin-top: .9rem; color: var(--ink); font-size: .86rem; font-weight: 800; text-align: left; }
+.onboarding-card label small { color: var(--muted); font-weight: 500; }
+.onboarding-card textarea { min-height: 88px; resize: vertical; }
+.onboarding-actions { display: flex; align-items: center; gap: .65rem; margin-top: 1.25rem; }
+.onboarding-actions > span { flex: 1; }
+.onboarding-actions .ghost { background: transparent; border: 0; color: var(--primary); padding-inline: .2rem; }
+.onboarding-actions .primary { margin-left: auto; }
+.auth-card button:disabled { cursor: wait; opacity: .72; }
+@media (max-width: 480px) { .onboarding-actions { flex-wrap: wrap; } .onboarding-actions > span { display: none; } .onboarding-actions .primary { width: 100%; } }

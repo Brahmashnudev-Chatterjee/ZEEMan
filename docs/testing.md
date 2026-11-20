@@ -1,17 +1,35 @@
-# Testing evidence checklist
+# Phase 3 testing
 
-## Automated checks
+## Backend regression suite
 
-Run `npm --prefix backend test` after installing dependencies. The included smoke test verifies the health endpoint. Extend this suite with isolated temporary database tests in CI.
+```powershell
+npm test
+```
 
-## Manual acceptance checklist
+The Node test suite creates an isolated temporary SQLite database. It verifies registration/login/logout, password-reset token hashing/expiry/single use, email-verification token hashing/expiry/single use, role-forging prevention, RBAC, private-task isolation, project membership, onboarding persistence, and duplicate-safe onboarding project/task updates.
 
-- Register two regular users. Confirm both receive `role: user` even if a role is supplied in browser requests.
-- Log in with seeded admin credentials; verify the Admin overview, member and category controls.
-- Create, edit, complete, and delete a regular user's task.
-- While signed in as user A, request user B's `/api/tasks/:id`; expect `404` without revealing the record.
-- Request an `/api/admin/*` route as a regular user; expect `403`.
-- Deactivate a user as admin; confirm their next API request is rejected.
-- Create/drag a Kanban task and confirm the database status changes after reload.
-- Run `docker compose config`, `docker compose up -d --build`, `docker compose ps`, and check `http://localhost:8080`.
-- Add a task, `docker compose down`, run `docker compose up -d`, and confirm data persists. Do not add `-v`.
+## Docker-hosted browser suite
+
+```powershell
+docker compose up -d --build
+$env:E2E_ADMIN_EMAIL = (Get-Content secrets/admin_email.txt -Raw).Trim()
+$env:E2E_ADMIN_PASSWORD = (Get-Content secrets/admin_password.txt -Raw).Trim()
+npx playwright install chromium
+npm run test:e2e
+```
+
+Playwright runs against `http://localhost:8080`, so each journey traverses Nginx, the cookie-based API, and the persistent Docker SQLite volume. Tests use unique `@example.test` records and do not alter existing records. The administrator test receives credentials only through process environment variables; test source never includes them.
+
+The browser suite verifies public routes, invalid and valid login, registration, user/admin dashboard redirects, protected-route redirect, resend verification, verification confirmation, onboarding, project creation, task creation, Kanban drag-and-drop persistence after reload, password reset, and logout.
+
+## Persistence check
+
+Do not use `-v` for this check:
+
+```powershell
+docker compose down
+docker compose up -d
+docker compose ps
+```
+
+Sign in with a previously created account and confirm its project/task remains. The named `zeeman-data` volume must still be present.

@@ -12,11 +12,15 @@
     "dev": "npm --prefix backend run dev",
     "start": "npm --prefix backend start",
     "test": "npm --prefix backend test",
+    "test:e2e": "playwright test",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down"
   },
   "description": "ZeeMan role-based task manager",
   "dependencies": {
     "express": "^4.22.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
   }
 }

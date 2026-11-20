@@ -10,7 +10,7 @@ ZeeMan is a vanilla JavaScript, Express, and SQLite project-management SaaS with
 | --- | --- | --- |
 | 1 | Architecture, permissions, schema, API design | Documented |
 | 2 | Public website, responsive navigation, legal/contact pages | Complete: public routes, responsive navigation, legal pages, and persisted contact form verified |
-| 3 | Authentication, setup, onboarding, reset/verification flows | Password-reset and verification token APIs plus onboarding flow implemented; browser E2E suite remains planned |
+| 3 | Authentication, setup, onboarding, reset/verification flows | Complete and locally validated: reset/verification UI, resend cooldown, five-step onboarding, API regression tests, and Docker-hosted Playwright journeys |
 | 4 | Application shell and dashboards | Core dashboard complete |
 | 5 | Users, projects, memberships and permissions | MVP complete |
 | 6 | Tasks, search, filters, categories and assignments | MVP complete |

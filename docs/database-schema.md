@@ -9,7 +9,7 @@ users (1) ───< tasks >─── (0..1) categories
 | Table | Key fields |
 | --- | --- |
 | `users` | `id`, `name`, unique case-insensitive `email`, `password_hash`, `role`, `account_status`, timestamps |
-| `tasks` | `id`, `title`, `description`, `user_id`, nullable `category_id`, `priority`, `status`, `due_date`, timestamps, `completed_at` |
+| `tasks` | `id`, `title`, `description`, `user_id`, nullable `category_id`/`project_id`, `priority`, `status`, `start_date`, `due_date`, timestamps, `completed_at` |
 | `categories` | `id`, unique `name`, `description`, `created_at` |
 | `activity_logs` | `id`, nullable `user_id`, `action`, `description`, `created_at` |
 
