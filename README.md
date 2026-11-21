@@ -182,3 +182,9 @@ POST /api/projects/:id/restore
 The current automated suite validates dashboard/report/CSV data, user workload, notification handling, settings persistence and that regular users are denied Admin dashboard/report APIs, in addition to the existing allocation workflow. Docker/Nginx is configured as one trusted reverse-proxy hop so rate limiting operates correctly for browser requests.
 
 `netlify/database/migrations/0004_admin_dashboard.sql` is an additive PostgreSQL companion migration for the new admin metadata. SQLite remains the local and Docker default.
+
+## Employee Workspace
+
+The Employee Workspace uses the same project, task, notification, activity, and session records as the Admin Control Center; it does not duplicate data. Employees have Dashboard, My Projects, My Tasks, Kanban, Calendar, My Progress, Notifications, My Profile, and Settings & Security routes under `/user`.
+
+Employee-only additions are `GET /api/reports/user`, `GET/PATCH /api/notifications[/:id]`, `POST /api/notifications/read-all`, `PUT /api/preferences`, and `POST /api/sessions/logout-others`. All are scoped to the authenticated employee. Employees cannot access Admin APIs or modify project/task fields beyond the status of their own assignment. See [Employee Workspace audit](docs/employee-dashboard-audit.md).

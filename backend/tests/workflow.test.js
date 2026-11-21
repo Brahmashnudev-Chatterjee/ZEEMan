@@ -150,6 +150,17 @@ test('admin dashboard, reporting, notification, settings, user, and audit APIs r
   await userA.agent.get('/api/admin/reports').expect(403);
 });
 
+test('employee report, notifications, personal preferences, and session controls are scoped to the signed-in user', async () => {
+  const report = await userA.agent.get('/api/reports/user').expect(200);
+  assert.equal(report.body.summary.total, 1);
+  assert.equal(report.body.tasks[0].id, ids.taskA);
+  await userA.agent.get('/api/notifications?limit=10').expect(200).expect(({ body }) => assert.equal(Array.isArray(body.notifications), true));
+  const updated = await json(userA.agent, 'put', '/api/preferences', { name: 'Allocated User A Updated', bio: 'Personal preference test', notification_preferences: { task_assignment: true, deadline_alerts: false } }).expect(200);
+  assert.equal(updated.body.user.name, 'Allocated User A Updated');
+  await json(userA.agent, 'post', '/api/sessions/logout-others', {}).expect(204);
+  await userA.agent.get('/api/admin/settings').expect(403);
+});
+
 test('regular-user onboarding is allocation based and cannot create a project or task', async () => {
   const fresh = request.agent(app);
   await json(fresh, 'post', '/api/auth/register', { name: 'Waiting Allocation', email: unique('waiting'), password }).expect(201);

@@ -121,6 +121,21 @@ exports.userAnalytics = asyncHandler(async (req, res) => {
   const upcoming = await all(`SELECT t.*,c.name category_name,p.name project_name FROM tasks t LEFT JOIN categories c ON c.id=t.category_id JOIN projects p ON p.id=t.project_id WHERE t.user_id=? AND t.due_date>=date('now') AND t.status NOT IN ('completed','cancelled') ORDER BY t.due_date LIMIT 5`, [req.user.id]);
   res.json({ overview: { ...overview, allocated_projects: allocated.allocated_projects }, upcoming, productivity: overview.total_tasks ? Math.round((overview.completed / overview.total_tasks) * 100) : 0 });
 });
+exports.userReport = asyncHandler(async (req, res) => {
+  const filters = ['t.user_id=?', 't.project_id IS NOT NULL']; const params = [req.user.id];
+  if (req.query.project_id) { filters.push('t.project_id=?'); params.push(req.query.project_id); }
+  if (req.query.status && statuses.includes(req.query.status)) { if (req.query.status === 'on_hold') filters.push('t.is_on_hold=1'); else { filters.push('t.status=? AND t.is_on_hold=0'); params.push(req.query.status); } }
+  if (req.query.priority && priorities.includes(req.query.priority)) { if (req.query.priority === 'urgent') filters.push('t.is_urgent=1'); else { filters.push('t.priority=? AND t.is_urgent=0'); params.push(req.query.priority); } }
+  if (req.query.from) { filters.push('date(t.due_date)>=date(?)'); params.push(req.query.from); } if (req.query.to) { filters.push('date(t.due_date)<=date(?)'); params.push(req.query.to); }
+  const where = `WHERE ${filters.join(' AND ')}`;
+  const tasks = await all(`SELECT t.id,t.title,${logicalStatus} status,${logicalPriority} priority,t.due_date,t.completed_at,p.name project_name,t.project_id FROM tasks t JOIN projects p ON p.id=t.project_id ${where} ORDER BY t.due_date`, params);
+  const summary = { total: tasks.length, completed: tasks.filter(t => t.status === 'completed').length, pending: tasks.filter(t => t.status === 'pending').length, in_progress: tasks.filter(t => t.status === 'in_progress').length, on_hold: tasks.filter(t => t.status === 'on_hold').length, overdue: tasks.filter(t => t.due_date && t.due_date < new Date().toISOString().slice(0, 10) && !['completed', 'on_hold'].includes(t.status)).length };
+  summary.completion_rate = summary.total ? Math.round(summary.completed * 100 / summary.total) : 0;
+  const byStatus = ['pending','in_progress','on_hold','completed'].map(label => ({ label, value: tasks.filter(t => t.status === label).length }));
+  const byPriority = priorities.map(label => ({ label, value: tasks.filter(t => t.priority === label).length }));
+  const projects = await all(`SELECT p.id,p.name,COUNT(t.id) assigned_tasks,SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) completed_tasks FROM projects p JOIN tasks t ON t.project_id=p.id ${where.replaceAll('t.project_id IS NOT NULL AND ','')} GROUP BY p.id`, params);
+  res.json({ summary, tasks, byStatus, byPriority, projects: projects.map(p => ({ ...p, progress: p.assigned_tasks ? Math.round((p.completed_tasks || 0) * 100 / p.assigned_tasks) : 0 })) });
+});
 
 exports.reports = asyncHandler(async (req, res) => {
   const filters = []; const params = [];
