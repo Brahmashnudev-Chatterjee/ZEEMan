@@ -25,7 +25,7 @@
   const formData = (form) => Object.fromEntries(new FormData(form));
 
   async function load() {
-    const [projectResult, taskResult] = await Promise.all([api('/projects'), api('/tasks')]);
+    const [projectResult, taskResult] = await Promise.all([api('/projects'), api(user.role === 'admin' ? '/tasks' : '/tasks?assigned_to_me=true')]);
     projects = projectResult.projects;
     tasks = taskResult.tasks;
     people = user.role === 'admin' ? (await api('/admin/users')).users.filter((person) => person.account_status === 'active') : [];
