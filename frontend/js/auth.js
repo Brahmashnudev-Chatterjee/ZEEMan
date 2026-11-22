@@ -22,7 +22,7 @@
     document.querySelector('#auth-form').onsubmit = async (event) => {
       event.preventDefault(); const form = event.currentTarget; const button = form.querySelector('button'); const status = form.querySelector('#auth-status');
       setBusy(button, true, register ? 'Creating…' : 'Signing in…'); status.textContent = '';
-      try { const result = await api(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) }); location.href = routeFor(result.user); }
+      try { const result = await api(register ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) }); location.replace(routeFor(result.user)); }
       catch (error) { status.textContent = error.message; setBusy(button, false); }
     };
   }
