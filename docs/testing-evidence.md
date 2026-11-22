@@ -1,4 +1,4 @@
-# Phase 5 final testing evidence
+# Phase 6 Stage 1 testing evidence
 
 Date: 2026-11-22
 
@@ -6,18 +6,18 @@ Date: 2026-11-22
 
 Command: `npm test --prefix backend`
 
-Result: **11 passed, 0 failed, 0 skipped**.
+Result: **12 passed, 0 failed, 0 skipped**.
 
-The isolated SQLite suite verifies authentication/session revocation/Origin protection, Admin project and task controls, project membership boundaries, employee status-only restrictions, analytics/activity persistence, Phase 5 comments/replies/mentions, subtask/checklist authorisation, private attachment upload/download/delete controls, and allocation onboarding.
+The isolated SQLite suite verifies authentication/session revocation/Origin protection, Admin project and task controls, project membership boundaries, employee status-only restrictions, analytics/activity persistence, Phase 5 collaboration controls, allocation onboarding, and Phase 6 milestone creation/edit/archive/link/unlink, cross-project linking denial, progress, overdue state, employee read-only access, and mutation denial.
 
 ## Browser suite
 
 Command: `npm run test:e2e -- --timeout=25000`
 
-Result: **4 passed, 0 failed, 0 skipped**.
+Result: **4 passed, 0 failed, 0 skipped** (run as focused Docker-hosted commands to stay inside the local command timeout).
 
 - Public authentication, verification, reset, and allocation onboarding.
-- Browser-only Admin project allocation and two independent employee assignments. Each user saw only their own My Tasks record and persisted an allowed status update.
+- Browser-only Admin project allocation and two independent employee assignments. The same journey creates a milestone, links both tasks, verifies employee read-only milestone visibility and denied milestone creation, and verifies the Admin sees calculated 50% milestone task progress after employee updates.
 - Admin Control Center route smoke coverage.
 - Cross-portal collaboration: Admin-created comment/mention/file/subtask/checklist; Employee reply/edit/upload/download/status updates; Admin visibility; notification presence; and denied employee priority/other-user attachment operations.
 
@@ -25,11 +25,11 @@ Each collaboration and allocation browser test uses unique fixture data and perf
 
 ## UI and syntax checks
 
-`node --check frontend/js/admin-console.js`, `node --check frontend/js/admin-task-collaboration.js`, `node --check frontend/js/workflow.js`, and `node --check frontend/js/user-task-collaboration.js` passed. `git diff --check` passed without whitespace errors.
+`node --check backend/src/controllers/milestone.controller.js`, `node --check frontend/js/admin-milestones.js`, `node --check frontend/js/user-milestones.js`, and the existing dashboard/collaboration scripts passed. `git diff --check` passed without whitespace errors.
 
 ## Docker and persistence checks
 
-`docker compose up -d --build` rebuilt both images. `docker compose ps` reported both `zeeman-backend-1` and `zeeman-frontend-1` as healthy. A subsequent backend restart retained the authenticated session and identical Admin dashboard project/task counts. The backend database and local attachment directory are under `/app/data`, which is backed by the named `zeeman-data` volume. Phase 5 data is persisted in SQLite rather than browser state.
+`docker compose up -d --build` rebuilt both images. `docker compose ps` reported both `zeeman-backend-1` and `zeeman-frontend-1` as healthy. An isolated milestone fixture survived a real backend container restart, then was deleted and verified absent; SQLite data lives in the named `zeeman-data` volume.
 
 ## PostgreSQL / Netlify note
 

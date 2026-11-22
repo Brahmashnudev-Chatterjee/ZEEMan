@@ -188,6 +188,53 @@ test('authorized task attachments persist privately and enforce uploader ownersh
   await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: { name: 'bad.exe', mime_type: 'application/x-msdownload', content_base64: 'AA==' } }).expect(400);
 });
 
+test('milestones are admin-managed, membership-scoped, and calculate real linked-task progress', async () => {
+  const zero = await json(admin, 'post', `/api/projects/${ids.project}/milestones`, {
+    title: 'Empty planning milestone', description: 'No linked work yet', status: 'not_started', due_date: '2026-12-31'
+  }).expect(201);
+  assert.equal(zero.body.milestone.progress, 0);
+  assert.equal(zero.body.milestone.task_count, 0);
+
+  const created = await json(admin, 'post', `/api/projects/${ids.project}/milestones`, {
+    title: 'Release milestone', description: 'Deliver assigned project work', status: 'in_progress', start_date: '2026-11-20', due_date: '2026-12-15'
+  }).expect(201);
+  const milestoneId = created.body.milestone.id;
+  await json(userA.agent, 'post', `/api/projects/${ids.project}/milestones`, { title: 'Forbidden milestone' }).expect(403);
+  await userC.agent.get(`/api/projects/${ids.project}/milestones`).expect(404);
+  await userA.agent.get(`/api/projects/${ids.project}/milestones`).expect(200).expect(({ body }) => assert.ok(body.milestones.some((item) => item.id === milestoneId)));
+
+  await json(admin, 'post', `/api/projects/${ids.project}/milestones/${milestoneId}/tasks`, { task_id: ids.taskA }).expect(200);
+  const linked = await json(admin, 'post', `/api/projects/${ids.project}/milestones/${milestoneId}/tasks`, { task_id: ids.taskB }).expect(200);
+  assert.equal(linked.body.milestone.task_count, 2);
+  assert.equal(linked.body.milestone.progress, 50);
+
+  const unrelatedProject = await json(admin, 'post', '/api/projects', { name: 'Unrelated milestone project', member_ids: [userC.id] }).expect(201);
+  const unrelatedTask = await json(admin, 'post', '/api/tasks', { project_id: unrelatedProject.body.project.id, user_id: userC.id, title: 'Unrelated task' }).expect(201);
+  await json(admin, 'post', `/api/projects/${ids.project}/milestones/${milestoneId}/tasks`, { task_id: unrelatedTask.body.task.id }).expect(400);
+
+  await json(userA.agent, 'patch', `/api/tasks/${ids.taskA}/status`, { status: 'completed' }).expect(200);
+  const detail = await admin.get(`/api/projects/${ids.project}/milestones/${milestoneId}`).expect(200);
+  assert.equal(detail.body.milestone.progress, 100);
+  assert.equal(detail.body.tasks.length, 2);
+  const projectProgress = await admin.get(`/api/projects/${ids.project}/progress`).expect(200);
+  assert.equal(projectProgress.body.task_progress.progress, 100);
+  assert.equal(projectProgress.body.milestones.total >= 2, true);
+
+  await json(userA.agent, 'patch', `/api/projects/${ids.project}/milestones/${milestoneId}`, { status: 'completed' }).expect(403);
+  const updated = await json(admin, 'patch', `/api/projects/${ids.project}/milestones/${milestoneId}`, { status: 'completed', due_date: '2026-12-16' }).expect(200);
+  assert.equal(updated.body.milestone.status, 'completed');
+  assert.ok(updated.body.milestone.completed_at);
+  await admin.delete(`/api/projects/${ids.project}/milestones/${milestoneId}/tasks/${ids.taskA}`).set('Origin', origin).expect(204);
+  await admin.delete(`/api/projects/${ids.project}/milestones/${milestoneId}`).set('Origin', origin).expect(204);
+  const remaining = await admin.get(`/api/projects/${ids.project}/milestones`).expect(200);
+  assert.equal(remaining.body.milestones.some((item) => item.id === milestoneId), false);
+
+  const overdue = await json(admin, 'post', `/api/projects/${ids.project}/milestones`, { title: 'Past deadline', due_date: '2020-01-01' }).expect(201);
+  assert.equal(overdue.body.milestone.is_overdue, true);
+  const activity = await admin.get(`/api/projects/${ids.project}/activity`).expect(200);
+  assert.ok(activity.body.activity.some((entry) => entry.action === 'MILESTONE_CREATED'));
+});
+
 test('regular-user onboarding is allocation based and cannot create a project or task', async () => {
   const fresh = request.agent(app);
   await json(fresh, 'post', '/api/auth/register', { name: 'Waiting Allocation', email: unique('waiting'), password }).expect(201);

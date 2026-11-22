@@ -7,6 +7,7 @@ const project = require('../controllers/project.controller');
 const publicController = require('../controllers/public.controller');
 const onboarding = require('../controllers/onboarding.controller');
 const collaboration = require('../controllers/collaboration.controller');
+const milestone = require('../controllers/milestone.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 // A shared browser/Nginx address can legitimately cover multiple local users.
 // Keep a meaningful brute-force guard without blocking the complete browser workflow.
@@ -31,6 +32,14 @@ router.get('/projects', authenticate, project.list);
 router.get('/projects/:id', authenticate, project.getOne);
 router.get('/projects/:id/tasks', authenticate, project.tasks);
 router.get('/projects/:id/activity', authenticate, authorize('admin'), project.activity);
+router.get('/projects/:projectId/milestones', authenticate, milestone.list);
+router.get('/projects/:projectId/milestones/:milestoneId', authenticate, milestone.getOne);
+router.get('/projects/:projectId/progress', authenticate, milestone.progress);
+router.post('/projects/:projectId/milestones', authenticate, authorize('admin'), milestone.create);
+router.patch('/projects/:projectId/milestones/:milestoneId', authenticate, authorize('admin'), milestone.update);
+router.delete('/projects/:projectId/milestones/:milestoneId', authenticate, authorize('admin'), milestone.archive);
+router.post('/projects/:projectId/milestones/:milestoneId/tasks', authenticate, authorize('admin'), milestone.linkTask);
+router.delete('/projects/:projectId/milestones/:milestoneId/tasks/:taskId', authenticate, authorize('admin'), milestone.unlinkTask);
 router.post('/projects', authenticate, authorize('admin'), project.create);
 router.put('/projects/:id', authenticate, authorize('admin'), project.update);
 router.patch('/projects/:id', authenticate, authorize('admin'), project.update);

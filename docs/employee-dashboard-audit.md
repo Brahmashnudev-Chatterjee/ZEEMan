@@ -19,6 +19,10 @@ The Employee Workspace uses the same projects, tasks, comments, attachments, not
 - Employees can edit/delete only their own comments and attachments. Other members' records are read-only.
 - Direct URLs and API calls are scoped by authenticated project membership; unrelated projects/tasks return no accessible record.
 
+## Phase 6 Stage 1 — milestones
+
+Allocated project details now include read-only milestone cards with description, workflow status, deadline/overdue state, calculated progress, and linked tasks. The interface does not render milestone-management controls for employees, and direct milestone mutation requests are rejected by backend Admin-only authorization.
+
 ## Phase 5 QA evidence
 
 `e2e/employee-collaboration.spec.js` creates isolated Admin and Employee records, verifies all task-entry paths, comments, edited replies, mentions, attachment upload/download, deliverable visibility, subtask/checklist completion, parent task status synchronization, Admin visibility, notifications, and denied employee priority/attachment deletion attempts. The fixture is cleaned up after each run.

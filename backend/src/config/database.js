@@ -59,6 +59,8 @@ async function initializeDatabase() {
   if (!taskColumns.some((column) => column.name === 'project_id')) await run('ALTER TABLE tasks ADD COLUMN project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL');
   if (!taskColumns.some((column) => column.name === 'is_urgent')) await run('ALTER TABLE tasks ADD COLUMN is_urgent INTEGER NOT NULL DEFAULT 0');
   if (!taskColumns.some((column) => column.name === 'is_on_hold')) await run('ALTER TABLE tasks ADD COLUMN is_on_hold INTEGER NOT NULL DEFAULT 0');
+  if (!taskColumns.some((column) => column.name === 'milestone_id')) await run('ALTER TABLE tasks ADD COLUMN milestone_id INTEGER REFERENCES milestones(id) ON DELETE SET NULL');
+  await run(`CREATE TABLE IF NOT EXISTS milestones (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'not_started' CHECK(status IN ('not_started','in_progress','completed','on_hold')), start_date TEXT, due_date TEXT, completed_at TEXT, created_by INTEGER NOT NULL, archived_at TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE, FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE RESTRICT)`);
   const commentColumns = await all('PRAGMA table_info(task_comments)');
   if (!commentColumns.some((column) => column.name === 'parent_id')) await run('ALTER TABLE task_comments ADD COLUMN parent_id INTEGER REFERENCES task_comments(id) ON DELETE SET NULL');
   if (!commentColumns.some((column) => column.name === 'updated_at')) await run('ALTER TABLE task_comments ADD COLUMN updated_at TEXT');
@@ -85,6 +87,8 @@ async function initializeDatabase() {
   if (!activityColumns.some((column) => column.name === 'project_id')) await run('ALTER TABLE activity_logs ADD COLUMN project_id INTEGER');
   if (!activityColumns.some((column) => column.name === 'metadata')) await run("ALTER TABLE activity_logs ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
   await run('CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_tasks_milestone ON tasks(milestone_id)');
+  await run('CREATE INDEX IF NOT EXISTS idx_milestones_project ON milestones(project_id, archived_at, due_date)');
   await run('CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id)');
   await run('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read_at)');
   await run('CREATE INDEX IF NOT EXISTS idx_activity_project ON activity_logs(project_id, created_at)');

@@ -68,6 +68,23 @@ All collaboration endpoints require authentication and an authorised task/projec
 
 Accepted local attachment MIME types are PDF, PNG, JPEG, plain text, CSV, DOCX, XLSX, and ZIP. The server limits uploads to 5 MB, cleans filenames, validates selected signatures, stores opaque keys, and never accepts a client-supplied filesystem path.
 
+## Milestones and project progress
+
+Milestones belong to one project. A project member may read only milestones belonging to an allocated project. Only an administrator can define milestones, alter their status/dates, archive them, or link/unlink tasks.
+
+| Method | Path | Access | Behaviour |
+| --- | --- | --- | --- |
+| GET | `/api/projects/:projectId/milestones` | Authorised project member | Lists active milestones with calculated linked-task progress and deadline state. Admin may request `?include_archived=true`. |
+| GET | `/api/projects/:projectId/milestones/:milestoneId` | Authorised project member | Reads one milestone plus its linked project tasks. |
+| POST | `/api/projects/:projectId/milestones` | Admin | Creates a milestone. Body: `title`, optional `description`, `status`, `start_date`, `due_date`. |
+| PATCH | `/api/projects/:projectId/milestones/:milestoneId` | Admin | Updates only title, description, status, start date, and due date. |
+| DELETE | `/api/projects/:projectId/milestones/:milestoneId` | Admin | Archives a milestone without deleting tasks or historical records. |
+| POST | `/api/projects/:projectId/milestones/:milestoneId/tasks` | Admin | Links a same-project task with `{ "task_id": 123 }`; a task can belong to one milestone at a time. |
+| DELETE | `/api/projects/:projectId/milestones/:milestoneId/tasks/:taskId` | Admin | Unlinks a task. |
+| GET | `/api/projects/:projectId/progress` | Authorised project member | Returns active parent-task progress plus milestone counts, overdue count, and average milestone task progress. |
+
+`milestone.progress` is `(completed linked parent tasks / all linked parent tasks) × 100`; an empty milestone is always `0%`. `milestone.status` remains an explicit Admin-controlled workflow state, so 100% calculated task progress does not automatically complete the milestone. An incomplete, non-archived milestone is overdue only when its due date is before the current UTC date.
+
 ## Administration
 
 All endpoints below require the `admin` role.

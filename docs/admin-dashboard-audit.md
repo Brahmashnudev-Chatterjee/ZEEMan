@@ -17,3 +17,7 @@ Administrators may moderate comments, delete any authorised task attachment, cre
 The current API supports subtask creation, deletion, and status changes. It does not expose subtask reordering/reassignment/editing or checklist item editing/deletion; the Admin UI deliberately does not render nonfunctional controls for those unsupported operations.
 
 The allocation browser workflow is no longer skipped. It creates isolated users and project/task fixtures through the browser UI, verifies employee scoping/status synchronization, then removes its fixtures.
+
+## Phase 6 Stage 1 — milestones
+
+The Admin project-detail page now includes a real milestone management panel. An administrator can create, edit, set status/dates, archive, and link/unlink same-project tasks. The panel uses `/api/projects/:id/milestones` and `/api/projects/:id/progress`, so counts and progress are calculated from live task records. The Stage 1 browser journey verifies that employee status changes alter the visible Admin milestone progress.

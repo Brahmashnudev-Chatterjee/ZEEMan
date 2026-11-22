@@ -72,7 +72,7 @@ test('public routes, authentication validation, verification, reset, and allocat
 
 test('admin allocates a project and tasks; members can update only their own assignments', async ({ browser }) => {
   test.skip(!process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, 'Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD for the Docker workflow journey.');
-  const userA = account('Allocated A'); const userB = account('Allocated B'); const projectName = `Browser Project ${Date.now()}`; const taskA = `Browser Task A ${Date.now()}`; const taskB = `Browser Task B ${Date.now()}`;
+  const userA = account('Allocated A'); const userB = account('Allocated B'); const projectName = `Browser Project ${Date.now()}`; const milestoneName = `Browser Milestone ${Date.now()}`; const taskA = `Browser Task A ${Date.now()}`; const taskB = `Browser Task B ${Date.now()}`;
   const pageA = await browser.newPage(); const pageB = await browser.newPage(); const adminPage = await browser.newPage(); let projectId;
   try {
     await register(pageA, userA); await finishAllocationOnboarding(pageA, userA); await logout(pageA);
@@ -96,14 +96,29 @@ test('admin allocates a project and tasks; members can update only their own ass
       await adminPage.locator('#modal-root #form .btn.primary').click();
       await expect(adminPage.getByText(title).first()).toBeVisible();
     }
+    await expect(adminPage.locator('[data-milestones-panel]')).toBeVisible();
+    await adminPage.locator('[data-ms-create] input[name="title"]').fill(milestoneName);
+    await adminPage.locator('[data-ms-create]').getByRole('button', { name: 'Create milestone' }).click();
+    await expect(adminPage.getByRole('heading', { name: milestoneName })).toBeVisible();
+    for (const taskTitle of [taskA, taskB]) {
+      const linkForm = adminPage.locator('[data-ms-link]').first();
+      await linkForm.locator('select[name="task_id"]').selectOption({ index: 0 });
+      await linkForm.getByRole('button', { name: 'Link task' }).click();
+      await expect(adminPage.getByText(taskTitle).first()).toBeVisible();
+    }
     await login(pageA, userA, /\/user\/dashboard$/);
     await pageA.goto('/user/projects'); await pageA.getByRole('button', { name: 'View project' }).click();
     await expect(pageA.locator('strong', { hasText: taskA }).first()).toBeVisible(); await expect(pageA.locator('strong', { hasText: taskB }).first()).toBeVisible();
+    await expect(pageA.getByRole('heading', { name: 'Milestones' })).toBeVisible();
+    await expect(pageA.getByRole('heading', { name: milestoneName })).toBeVisible();
+    await expect(pageA.locator('[data-ms-create]')).toHaveCount(0);
+    await expect(pageA.evaluate(async id => (await fetch(`/api/projects/${id}/milestones`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Forbidden browser milestone' }) })).status, projectId)).resolves.toBe(403);
     await pageA.goto('/user/my-tasks'); await expect(pageA.locator('strong', { hasText: taskA }).first()).toBeVisible(); await expect(pageA.locator('strong', { hasText: taskB })).toHaveCount(0);
     await pageA.locator('[data-own-status]').selectOption('in_progress'); await expect(pageA.locator('[data-own-status]')).toHaveValue('in_progress');
     await login(pageB, userB, /\/user\/dashboard$/); await pageB.goto('/user/my-tasks'); await expect(pageB.locator('strong', { hasText: taskB }).first()).toBeVisible(); await expect(pageB.locator('strong', { hasText: taskA })).toHaveCount(0);
     await pageB.locator('[data-own-status]').selectOption('completed'); await expect(pageB.locator('[data-own-status]')).toHaveValue('completed');
     await adminPage.goto(`/admin/projects/${projectId}`); await expect(adminPage.getByText('In Progress').first()).toBeVisible(); await expect(adminPage.getByText('Completed').first()).toBeVisible();
+    await expect(adminPage.getByText('50% task progress')).toBeVisible();
   } finally {
     if (projectId) await adminPage.evaluate(async id => { await fetch(`/api/projects/${id}`, { method: 'DELETE' }); }, projectId).catch(() => {});
     for (const email of [userA.email, userB.email]) await adminPage.evaluate(async value => { const result = await fetch(`/api/admin/users?search=${encodeURIComponent(value)}`); const body = await result.json(); const record = body.users?.find(item => item.email === value); if (record) await fetch(`/api/admin/users/${record.id}`, { method: 'DELETE' }); }, email).catch(() => {});

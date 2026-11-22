@@ -14,6 +14,7 @@ Admin creates project → adds members → creates project tasks → assigns mem
 - Admin project CRUD, archive action, member allocation, task CRUD, task reassignment, priority/date/status editing, Kanban, calendar/deadline list, activity history, analytics, and user management.
 - User dashboard, allocated-project list/detail, My Tasks, task detail, Kanban, and calendar/deadline list.
 - Phase 5 collaboration: task comments and threaded replies, member-only @mentions, private attachments, admin-managed subtasks/checklists, task activity timelines, and persisted collaboration notifications in both Admin and Employee task details.
+- Phase 6 Stage 1 milestones: Admin-created, editable and archive-safe project milestones; project-task linking; calculated milestone progress; deadline/overdue indicators; milestone activity and member notifications; and read-only milestone visibility for allocated employees.
 - Backend membership checks: users see only allocated projects; they can see project tasks but may PATCH only the `status` of a task assigned to them.
 - Allocation onboarding. A regular user completes a profile then waits for an administrator allocation; onboarding never creates projects or tasks.
 - Dockerized Nginx frontend, private Express backend, named persistent SQLite volume, bridge network, health checks, and Docker secrets.
@@ -58,6 +59,9 @@ All APIs live under `/api` and use the HttpOnly session cookie.
 | `POST` | `/projects` | Admin |
 | `GET` | `/projects/:id`, `/projects/:id/tasks`, `/projects/:id/members` | Admin or allocated member |
 | `POST/DELETE` | `/projects/:id/members[/:userId]` | Admin |
+| `GET` | `/projects/:id/milestones`, `/projects/:id/milestones/:milestoneId`, `/projects/:id/progress` | Admin or allocated member |
+| `POST/PATCH/DELETE` | `/projects/:id/milestones[/:milestoneId]` | Admin |
+| `POST/DELETE` | `/projects/:id/milestones/:milestoneId/tasks[/:taskId]` | Admin |
 | `PATCH/DELETE` | `/projects/:id` | Admin |
 | `POST` | `/projects/:id/archive` | Admin |
 | `GET` | `/tasks`, `/tasks/:id` | Admin or authorised project member |
@@ -136,7 +140,7 @@ Console email mode is explicitly for local development and produces local verifi
 npm test
 ```
 
-The backend suite contains 11 passing workflow tests covering authentication, Origin protection, membership validation, employee field restrictions, status ownership, collaboration APIs, private attachments, notifications, onboarding, and Admin-only operations.
+The backend suite contains 12 passing workflow tests covering authentication, Origin protection, membership validation, employee field restrictions, status ownership, collaboration APIs, private attachments, notifications, onboarding, Admin-only operations, and milestone/project-progress security.
 
 With Docker services healthy:
 
@@ -147,20 +151,20 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The Docker-hosted Playwright suite covers account/verification/reset/onboarding, the Admin allocation flow, all Admin Control Center modules, and the cross-portal Employee collaboration flow. Tests create isolated records and clean them up. The final Phase 5 QA run completed with 4 passing browser tests and no skips.
+The Docker-hosted Playwright suite covers account/verification/reset/onboarding, the Admin allocation flow, milestone creation/linking/read-only employee visibility/progress synchronization, all Admin Control Center modules, and the cross-portal Employee collaboration flow. Tests create isolated records and clean them up. The final local Phase 6 Stage 1 run completed with 4 passing browser tests and no skips.
 
 ## Database and deployment notes
 
 SQLite is suitable for this single backend replica. The named Docker volume persists it across container recreation. Legacy personal tasks are preserved but deliberately excluded from the regular-user allocation workspace; migrate them explicitly rather than silently deleting them.
 
-The repository also retains optional Netlify/PostgreSQL support. Apply every provisioned migration, including `0005_task_collaboration.sql`, before enabling collaboration in PostgreSQL. For multi-instance Azure or other production scaling, migrate fully to a managed PostgreSQL service.
+The repository also retains optional Netlify/PostgreSQL support. Apply every provisioned migration, including `0005_task_collaboration.sql` and `0006_milestones.sql`, before enabling collaboration/milestones in PostgreSQL. For multi-instance Azure or other production scaling, migrate fully to a managed PostgreSQL service.
 
 ## Remaining limitations
 
 - Local/Docker attachments are private files below `UPLOAD_PATH` (or the database directory's `uploads/` folder) and persist only when that path is mounted on persistent storage. The Compose data volume provides this locally.
 - Netlify Function storage is ephemeral. Production attachments require a configured private object-storage adapter, a bucket/container, service credentials injected as environment variables, and signed/authorised download handling. Uploads must not be considered production-ready on Netlify until that adapter is implemented and tested.
 - Subtasks currently have title, description, assignee, and status. Priority and due-date fields are deliberately not fabricated because the current schema does not contain them.
-- Dependencies, recurring tasks, time tracking, milestones, and Gantt views remain later phases.
+- Dependencies, recurring tasks, time tracking, and Gantt views remain later phases. Milestone records are implemented; their task progress is calculated dynamically and is not a historical snapshot.
 
 ## Admin Control Center (current implementation)
 
