@@ -1,18 +1,19 @@
-# Admin dashboard audit — 2026-11-21
+# Admin Control Center audit — Phase 5 final QA (2026-11-22)
 
-This audit was performed against the running Docker application before the implementation work in this phase. The completion column records the final implementation state on 2026-11-21.
+The Admin Control Center remains the source of project planning and work allocation. Its ten existing management modules continue to use live API data.
 
-| Module | Initial status | Evidence found | Required completion work |
-| --- | --- | --- | --- |
-| Dashboard overview | COMPLETE | Basic cards and project cards only | Live statistics, deadline groups, activity, charts, quick actions, and linked filtering implemented |
-| Projects | COMPLETE | CRUD, members, detail, activity existed | Restore, filtering, full list columns and safe active-assignment member-removal policy implemented |
-| Tasks | COMPLETE | Admin task APIs and project detail form existed | Dedicated filterable task console, urgent/on-hold logical values and member-bound reassignment implemented |
-| Users | COMPLETE | Admin user APIs existed | Workload/profile detail, last login, activation safety, session revocation, and admin UI implemented |
-| Kanban | COMPLETE | Four columns and persisted drag drop existed | Filters, persisted drag/drop, and select control alternative implemented |
-| Calendar | COMPLETE | Deadline table only | Month/week/day navigation, filters, and task opening/editing implemented |
-| Reports | COMPLETE | Only global analytics endpoint existed | Filtered report API, trend/workload/project data and filtered CSV export implemented |
-| Notifications | COMPLETE | SQLite table and assignment events existed | Inbox, unread count, read state, bell and related-route navigation implemented |
-| Activity logs | COMPLETE | Table and recent activity existed | Structured fields, list/filter/detail APIs and admin UI implemented |
-| Settings/profile | COMPLETE | Profile/password APIs existed | Persisted preferences, password/session controls and settings UI implemented |
+| Area | Status | Phase 5 verified capability |
+| --- | --- | --- |
+| Projects and members | Complete | Admin creates projects, allocates/removes members, and monitors project progress. |
+| Project tasks | Complete | Admin creates, edits, deletes, assigns, and reassigns project tasks through the existing task controls. |
+| Task collaboration | Complete | `/admin/tasks/:id` provides task overview, comments/replies/moderation, searchable mentions, private attachments, subtasks, checklists, and activity timeline. |
+| Reports, dashboard, activity | Complete | Employee task status changes update the same task/project records used by Admin dashboards and reports. |
+| Notifications | Complete | Task assignment, mentions, uploads, and status changes are persisted and scoped to recipients. |
 
-Final evidence is recorded in `docs/testing-evidence.md`.
+## Collaboration permissions
+
+Administrators may moderate comments, delete any authorised task attachment, create/assign/delete subtasks, create checklist items, mark checklist completion, and review task activity. All controls call the existing authenticated collaboration APIs.
+
+The current API supports subtask creation, deletion, and status changes. It does not expose subtask reordering/reassignment/editing or checklist item editing/deletion; the Admin UI deliberately does not render nonfunctional controls for those unsupported operations.
+
+The allocation browser workflow is no longer skipped. It creates isolated users and project/task fixtures through the browser UI, verifies employee scoping/status synchronization, then removes its fixtures.

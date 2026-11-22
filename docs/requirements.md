@@ -15,10 +15,10 @@ ZeeMan is a vanilla JavaScript, Express, and SQLite project-management SaaS with
 | 5 | Users, projects, memberships and permissions | MVP complete |
 | 6 | Tasks, search, filters, categories and assignments | MVP complete |
 | 7 | Kanban, calendar, deadlines | MVP complete |
-| 8 | Teams, comments, subtasks, notifications | Schema foundations complete; UI/API planned |
+| 8 | Teams, comments, subtasks, notifications | Phase 5 complete: secured APIs, Admin/Employee task collaboration UI, attachments, activity, and browser regression coverage |
 | 9 | Reports, settings, exports and advanced analytics | Core analytics complete; advanced reporting planned |
 | 10–12 | Docker, Docker Hub, Azure | Docker complete; Hub/Azure release work planned |
-| 13 | Browser QA, accessibility, documentation and release evidence | Planned |
+| 13 | Browser QA, accessibility, documentation and release evidence | Phase 5 QA complete locally; production object storage/PostgreSQL verification remains an external deployment prerequisite |
 
 ## Architectural decisions
 

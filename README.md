@@ -13,6 +13,7 @@ Admin creates project → adds members → creates project tasks → assigns mem
 - Two global roles: `admin` and `user`; public registration only creates regular users.
 - Admin project CRUD, archive action, member allocation, task CRUD, task reassignment, priority/date/status editing, Kanban, calendar/deadline list, activity history, analytics, and user management.
 - User dashboard, allocated-project list/detail, My Tasks, task detail, Kanban, and calendar/deadline list.
+- Phase 5 collaboration: task comments and threaded replies, member-only @mentions, private attachments, admin-managed subtasks/checklists, task activity timelines, and persisted collaboration notifications in both Admin and Employee task details.
 - Backend membership checks: users see only allocated projects; they can see project tasks but may PATCH only the `status` of a task assigned to them.
 - Allocation onboarding. A regular user completes a profile then waits for an administrator allocation; onboarding never creates projects or tasks.
 - Dockerized Nginx frontend, private Express backend, named persistent SQLite volume, bridge network, health checks, and Docker secrets.
@@ -62,6 +63,16 @@ All APIs live under `/api` and use the HttpOnly session cookie.
 | `GET` | `/tasks`, `/tasks/:id` | Admin or authorised project member |
 | `POST/PATCH/DELETE` | `/tasks[/:id]` | Admin |
 | `PATCH` | `/tasks/:id/status` | Admin or task assignee; body is exactly `{ "status": "..." }` |
+| `GET/POST` | `/tasks/:id/comments` | Authorised project member; create comments/replies and structured mentions |
+| `PATCH/DELETE` | `/comments/:id` | Comment author; Admin may moderate any project comment |
+| `GET` | `/tasks/:id/mentionable-users` | Authorised project member; active project members only |
+| `GET/POST` | `/tasks/:id/attachments` | Authorised project member; private validated file upload/list |
+| `GET/DELETE` | `/attachments/:id/download`, `/attachments/:id` | Authorised member download; uploader or Admin deletion |
+| `GET/POST` | `/tasks/:id/subtasks` | Member read; Admin create/assign |
+| `PATCH/DELETE` | `/subtasks/:id/status`, `/subtasks/:id` | Assignee/Admin status; Admin deletion |
+| `GET/POST` | `/tasks/:id/checklists` | Member read; Admin create |
+| `PATCH` | `/checklist-items/:id/completion` | Assigned checklist owner, parent-task assignee, or Admin |
+| `GET` | `/tasks/:id/activity` | Authorised project member |
 | `GET` | `/analytics/user`, `/admin/analytics` | User own metrics / admin global metrics |
 
 ## Project structure
@@ -125,7 +136,7 @@ Console email mode is explicitly for local development and produces local verifi
 npm test
 ```
 
-The backend suite contains 7 passing workflow tests covering admin-only project/task operations, membership validation, user scope, own-status-only updates, progress, activity, onboarding, session/logout, and Origin protection.
+The backend suite contains 11 passing workflow tests covering authentication, Origin protection, membership validation, employee field restrictions, status ownership, collaboration APIs, private attachments, notifications, onboarding, and Admin-only operations.
 
 With Docker services healthy:
 
@@ -136,17 +147,20 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The Docker-hosted Playwright suite covers account/verification/reset/onboarding and authenticated rendering of all ten Admin Control Center modules. The complete Admin allocation workflow is covered in the isolated backend workflow suite; its earlier long browser duplicate remains explicitly skipped because it is brittle across accumulated local demo data.
+The Docker-hosted Playwright suite covers account/verification/reset/onboarding, the Admin allocation flow, all Admin Control Center modules, and the cross-portal Employee collaboration flow. Tests create isolated records and clean them up. The final Phase 5 QA run completed with 4 passing browser tests and no skips.
 
 ## Database and deployment notes
 
 SQLite is suitable for this single backend replica. The named Docker volume persists it across container recreation. Legacy personal tasks are preserved but deliberately excluded from the regular-user allocation workspace; migrate them explicitly rather than silently deleting them.
 
-The repository also retains optional Netlify/PostgreSQL support. The additive migration `0003_add_project_archived_at.sql` keeps its schema aligned with the SQLite archive field. For multi-instance Azure or other production scaling, migrate fully to a managed PostgreSQL service.
+The repository also retains optional Netlify/PostgreSQL support. Apply every provisioned migration, including `0005_task_collaboration.sql`, before enabling collaboration in PostgreSQL. For multi-instance Azure or other production scaling, migrate fully to a managed PostgreSQL service.
 
 ## Remaining limitations
 
-- Comments, subtasks, dependencies, recurring tasks, time tracking, milestones and Gantt views remain future collaboration phases.
+- Local/Docker attachments are private files below `UPLOAD_PATH` (or the database directory's `uploads/` folder) and persist only when that path is mounted on persistent storage. The Compose data volume provides this locally.
+- Netlify Function storage is ephemeral. Production attachments require a configured private object-storage adapter, a bucket/container, service credentials injected as environment variables, and signed/authorised download handling. Uploads must not be considered production-ready on Netlify until that adapter is implemented and tested.
+- Subtasks currently have title, description, assignee, and status. Priority and due-date fields are deliberately not fabricated because the current schema does not contain them.
+- Dependencies, recurring tasks, time tracking, milestones, and Gantt views remain later phases.
 
 ## Admin Control Center (current implementation)
 

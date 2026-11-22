@@ -1,16 +1,27 @@
 # Database schema
 
+ZeeMan uses SQLite for local/Docker development with foreign keys enabled and WAL mode. The production companion schema is PostgreSQL through the ordered Netlify migrations.
+
 ```text
-users (1) ───< tasks >─── (0..1) categories
-  │
-  └────< activity_logs
+users ──< project_members >── projects ──< tasks
+  │                                │          │
+  ├──< sessions                     │          ├──< task_comments ──< comment_mentions
+  ├──< notifications                │          ├──< task_attachments
+  └──< activity_logs                │          ├──< subtasks
+                                   └──────────└──< checklist_items
 ```
 
-| Table | Key fields |
+| Table | Phase 5 fields / relationships |
 | --- | --- |
-| `users` | `id`, `name`, unique case-insensitive `email`, `password_hash`, `role`, `account_status`, timestamps |
-| `tasks` | `id`, `title`, `description`, `user_id`, nullable `category_id`/`project_id`, `priority`, `status`, `start_date`, `due_date`, timestamps, `completed_at` |
-| `categories` | `id`, unique `name`, `description`, `created_at` |
-| `activity_logs` | `id`, nullable `user_id`, `action`, `description`, `created_at` |
+| `task_comments` | `task_id`, `user_id`, `body`, optional `parent_id`, `updated_at`, `deleted_at`; task/user foreign keys cascade. |
+| `comment_mentions` | Composite `comment_id`, `user_id` key; links comments to authorised mention recipients. |
+| `task_attachments` | `task_id`, uploader `user_id`, `original_name`, unique opaque `storage_key`, MIME type, size, create/delete timestamps. |
+| `subtasks` | Parent `task_id`, title/description, assigned `user_id`, status, creator, completion and update timestamps. Priority and due date are intentionally not schema fields. |
+| `checklist_items` | Parent `task_id`, title, optional owner `user_id`, creator, ordering, and completion timestamp. |
+| `activity_logs` | Actor, action, description, optional `entity_type`, `entity_id`, `project_id`, metadata, and timestamp. |
 
-Foreign keys are enabled. Deleting a user cascades to their tasks. Deleting a category sets attached task categories to `NULL`. WAL mode provides better controlled local write behavior but does not make SQLite a multi-replica database.
+## Migration safety
+
+SQLite initializes missing Phase 5 tables with `CREATE TABLE IF NOT EXISTS` and adds pre-existing columns only after `PRAGMA table_info` checks. Existing collaboration/project/task records are not dropped.
+
+`netlify/database/migrations/0005_task_collaboration.sql` is additive PostgreSQL SQL: it uses `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS`, foreign keys, and an attachment lookup index. Apply it only after the prerequisite base migrations. It was statically reviewed during Phase 5 QA; no live PostgreSQL/Netlify database was available in this local environment to execute it.

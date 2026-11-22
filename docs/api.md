@@ -47,6 +47,27 @@ Date ranges require a start date on or before the due date. A task requires an o
 
 Task fields are `title`, `description`, `category_id`, `project_id`, `priority`, `status`, `start_date`, and `due_date`. Administrators can additionally set `user_id`.
 
+## Task collaboration
+
+All collaboration endpoints require authentication and an authorised task/project membership. Their database records are shared by the Admin and Employee task-detail interfaces.
+
+| Method | Path | Access | Behaviour |
+| --- | --- | --- | --- |
+| GET/POST | `/api/tasks/:taskId/comments` | Authorised member | List root comments/replies or create a comment/reply. `mention_ids` must be active project members. |
+| PATCH/DELETE | `/api/comments/:id` | Author or Admin | Update/delete an own comment; Admin can moderate project comments. Deleted comments retain an audit-safe deleted state. |
+| GET | `/api/tasks/:taskId/mentionable-users` | Authorised member | Active members eligible for a structured mention. |
+| GET/POST | `/api/tasks/:taskId/attachments` | Authorised member | List/upload private attachments. Upload payload is `{ file: { name, mime_type, content_base64 } }`. |
+| GET | `/api/attachments/:id/download` | Authorised member | Download a private attachment after task access is verified. |
+| DELETE | `/api/attachments/:id` | Uploader or Admin | Soft-delete metadata and remove local content when present. |
+| GET/POST | `/api/tasks/:taskId/subtasks` | Member read / Admin write | List subtasks or create an assigned subtask for a project member. |
+| PATCH | `/api/subtasks/:id/status` | Subtask assignee or Admin | Update only a permitted subtask status. |
+| DELETE | `/api/subtasks/:id` | Admin | Delete a subtask. |
+| GET/POST | `/api/tasks/:taskId/checklists` | Member read / Admin write | List or create checklist items. |
+| PATCH | `/api/checklist-items/:id/completion` | Item owner, parent-task assignee, or Admin | Toggle completion state. |
+| GET | `/api/tasks/:taskId/activity` | Authorised member | Read task-relevant persisted collaboration activity. |
+
+Accepted local attachment MIME types are PDF, PNG, JPEG, plain text, CSV, DOCX, XLSX, and ZIP. The server limits uploads to 5 MB, cleans filenames, validates selected signatures, stores opaque keys, and never accepts a client-supplied filesystem path.
+
 ## Administration
 
 All endpoints below require the `admin` role.

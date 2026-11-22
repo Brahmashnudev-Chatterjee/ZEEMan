@@ -161,6 +161,33 @@ test('employee report, notifications, personal preferences, and session controls
   await userA.agent.get('/api/admin/settings').expect(403);
 });
 
+test('task collaboration comments, replies, mentions, subtasks and checklists enforce membership and ownership', async () => {
+  const comment = await json(admin, 'post', `/api/tasks/${ids.taskA}/comments`, { body: 'Please review this @member', mention_ids: [userA.id] }).expect(201);
+  const reply = await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/comments`, { body: 'I will start today.', parent_id: comment.body.comment.id }).expect(201);
+  await json(userB.agent, 'patch', `/api/comments/${reply.body.comment.id}`, { body: 'Not mine' }).expect(403);
+  const discussion = await userA.agent.get(`/api/tasks/${ids.taskA}/comments`).expect(200);
+  assert.equal(discussion.body.comments[0].replies.length, 1);
+  const subtask = await json(admin, 'post', `/api/tasks/${ids.taskA}/subtasks`, { title: 'Collaboration subtask', user_id: userA.id }).expect(201);
+  await json(userB.agent, 'patch', `/api/subtasks/${subtask.body.subtask.id}/status`, { status: 'completed' }).expect(403);
+  await json(userA.agent, 'patch', `/api/subtasks/${subtask.body.subtask.id}/status`, { status: 'completed' }).expect(200);
+  const item = await json(admin, 'post', `/api/tasks/${ids.taskA}/checklists`, { title: 'Confirm requirement', user_id: userA.id }).expect(201);
+  await json(userA.agent, 'patch', `/api/checklist-items/${item.body.item.id}/completion`, { completed: true }).expect(200);
+  await userC.agent.get(`/api/tasks/${ids.taskA}/comments`).expect(404);
+});
+
+test('authorized task attachments persist privately and enforce uploader ownership', async () => {
+  const file = { name: 'specification.txt', mime_type: 'text/plain', content_base64: Buffer.from('private collaboration file').toString('base64') };
+  const uploaded = await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file }).expect(201);
+  const attachmentId = uploaded.body.attachment.id;
+  await userA.agent.get(`/api/attachments/${attachmentId}/download`).expect(200).expect('content-type', /text\/plain/);
+  await userB.agent.delete(`/api/attachments/${attachmentId}`).set('Origin', origin).expect(403);
+  await userC.agent.get(`/api/attachments/${attachmentId}/download`).expect(404);
+  await userA.agent.delete(`/api/attachments/${attachmentId}`).set('Origin', origin).expect(204);
+  await userA.agent.get(`/api/attachments/${attachmentId}/download`).expect(404);
+  await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: { ...file, name: '../../unsafe.txt' } }).expect(201);
+  await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: { name: 'bad.exe', mime_type: 'application/x-msdownload', content_base64: 'AA==' } }).expect(400);
+});
+
 test('regular-user onboarding is allocation based and cannot create a project or task', async () => {
   const fresh = request.agent(app);
   await json(fresh, 'post', '/api/auth/register', { name: 'Waiting Allocation', email: unique('waiting'), password }).expect(201);
