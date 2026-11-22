@@ -73,7 +73,9 @@ test('employee task collaboration uses the shared Admin records and keeps employ
     await worker.getByRole('button', { name: 'Save' }).click();
     await expect(worker.getByText('Employee edited update.')).toBeVisible();
 
-    await worker.locator('#attachment-file').setInputFiles({ name: 'employee-deliverable.txt', mimeType: 'text/plain', buffer: Buffer.from('Employee deliverable') });
+    // Larger than Express's historical 100 KB JSON body limit; validates the
+    // base64 upload path used by real employee image/document deliverables.
+    await worker.locator('#attachment-file').setInputFiles({ name: 'employee-deliverable.txt', mimeType: 'text/plain', buffer: Buffer.alloc(130 * 1024, 'E') });
     await worker.getByRole('button', { name: 'Upload attachment' }).click();
     await expect(worker.getByText('employee-deliverable.txt', { exact: true })).toBeVisible();
     const download = worker.waitForEvent('download');

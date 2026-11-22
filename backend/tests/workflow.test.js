@@ -185,6 +185,11 @@ test('authorized task attachments persist privately and enforce uploader ownersh
   await userA.agent.delete(`/api/attachments/${attachmentId}`).set('Origin', origin).expect(204);
   await userA.agent.get(`/api/attachments/${attachmentId}/download`).expect(404);
   await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: { ...file, name: '../../unsafe.txt' } }).expect(201);
+  // Base64 adds transport overhead. This is intentionally larger than the
+  // former 100 KB JSON parser limit but below the 5 MB binary upload limit.
+  const mediumFile = { name: 'employee-deliverable.txt', mime_type: 'text/plain', content_base64: Buffer.alloc(130 * 1024, 'a').toString('base64') };
+  const mediumUpload = await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: mediumFile }).expect(201);
+  await userA.agent.delete(`/api/attachments/${mediumUpload.body.attachment.id}`).set('Origin', origin).expect(204);
   await json(userA.agent, 'post', `/api/tasks/${ids.taskA}/attachments`, { file: { name: 'bad.exe', mime_type: 'application/x-msdownload', content_base64: 'AA==' } }).expect(400);
 });
 

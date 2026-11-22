@@ -161,7 +161,7 @@ The repository also retains optional Netlify/PostgreSQL support. Apply every pro
 
 ## Remaining limitations
 
-- Local/Docker attachments are private files below `UPLOAD_PATH` (or the database directory's `uploads/` folder) and persist only when that path is mounted on persistent storage. The Compose data volume provides this locally.
+- Local/Docker attachments are private files below `UPLOAD_PATH` (or the database directory's `uploads/` folder) and persist only when that path is mounted on persistent storage. The Compose data volume provides this locally. The API accepts base64 transport overhead but still enforces a 5 MB decoded-file limit and returns HTTP 413 for oversized requests.
 - Netlify Function storage is ephemeral. Production attachments require a configured private object-storage adapter, a bucket/container, service credentials injected as environment variables, and signed/authorised download handling. Uploads must not be considered production-ready on Netlify until that adapter is implemented and tested.
 - Subtasks currently have title, description, assignee, and status. Priority and due-date fields are deliberately not fabricated because the current schema does not contain them.
 - Dependencies, recurring tasks, time tracking, and Gantt views remain later phases. Milestone records are implemented; their task progress is calculated dynamically and is not a historical snapshot.

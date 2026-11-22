@@ -1,2 +1,74 @@
-/* Scoped Phase 5 layout corrections: do not let native controls set grid widths. */
-.collab-section,.collab-section form,.collab-section label,.compact-form,.inline-form{min-width:0}.collab-section input:not([type="checkbox"]):not([type="file"]),.collab-section textarea,.collab-section select{box-sizing:border-box;max-width:100%;min-width:0;width:100%}.collab-section textarea{display:block}.collab-overview-grid>div{align-items:start}.collab-overview-grid .priority,.collab-overview-grid .pill{justify-self:start;width:auto}.inline-form{grid-template-columns:minmax(0,1fr) minmax(0,.62fr) auto}.inline-form .btn{align-self:end;justify-self:start;white-space:nowrap}.compact-form .full,.inline-form label{min-width:0}.attachment-upload>*{min-width:0}@media(max-width:1150px){.collab-layout{grid-template-columns:1fr}.collab-activity{grid-column:auto}}@media(max-width:620px){.inline-form{grid-template-columns:1fr}.inline-form .btn{justify-self:stretch}.collab-overview-grid{grid-template-columns:1fr 1fr}}
+/* ==========================================================================
+   ZeeMan — Scoped Layout & Grid Width Protection
+   ========================================================================== */
+
+.collab-section,
+.collab-section form,
+.collab-section label,
+.compact-form,
+.inline-form {
+  min-width: 0;
+}
+
+.collab-section input:not([type="checkbox"]):not([type="file"]),
+.collab-section textarea,
+.collab-section select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.collab-section textarea {
+  display: block;
+}
+
+.collab-overview-grid > div {
+  align-items: start;
+}
+
+.collab-overview-grid .priority,
+.collab-overview-grid .pill {
+  justify-self: start;
+  width: auto;
+}
+
+.inline-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr) auto;
+}
+
+.inline-form .btn {
+  align-self: end;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.compact-form .full,
+.inline-form label {
+  min-width: 0;
+}
+
+.attachment-upload > * {
+  min-width: 0;
+}
+
+@media (max-width: 1150px) {
+  .collab-layout {
+    grid-template-columns: 1fr;
+  }
+  .collab-activity {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .inline-form {
+    grid-template-columns: 1fr;
+  }
+  .inline-form .btn {
+    justify-self: stretch;
+  }
+  .collab-overview-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

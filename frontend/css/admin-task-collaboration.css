@@ -1,1 +1,389 @@
-.task-overview{margin-bottom:1.2rem}.collab-overview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;border-top:1px solid var(--line);padding-top:1rem}.collab-overview-grid>div{display:grid;gap:.25rem}.collab-overview-grid small,.attachment small,.subtask small,.checklist-item small,.comment small{color:var(--muted);font-size:.75rem}.collab-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem;align-items:start}.collab-section{padding:1.35rem}.collab-section h2{margin:0;font-size:1.15rem}.count-chip{background:#eef2ff;color:var(--primary);border-radius:999px;padding:.2rem .55rem;font-size:.75rem;font-weight:800}.comment-list,.attachment-list,.subtask-list,.checklist-list,.timeline{display:grid;gap:.75rem;margin-top:1rem}.comment{border:1px solid var(--line);border-radius:12px;padding:1rem;background:#fff}.comment.reply{margin:.65rem 0 0 1.2rem;background:#fafbff}.comment header,.comment footer{display:flex;gap:.6rem;align-items:center;justify-content:space-between}.comment header{justify-content:flex-start}.comment p,.subtask p{white-space:pre-wrap;margin:.6rem 0;color:#44506a}.comment footer{justify-content:flex-start}.reply-host{margin-top:.75rem}.reply-form,.comment-edit-form{display:grid;gap:.55rem}.attachment-upload{display:flex;gap:.7rem;align-items:end;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:1rem}.attachment-upload label{display:grid;gap:.2rem;font-weight:800}.attachment-upload input{max-width:100%}.attachment{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid var(--line);border-radius:10px;padding:.75rem}.attachment strong,.attachment small,.subtask strong,.subtask small,.checklist-item strong,.checklist-item small{display:block}.subtask{display:flex;justify-content:space-between;gap:1rem;border:1px solid var(--line);border-radius:10px;padding:.85rem}.subtask p{font-size:.85rem}.subtask-actions{display:flex;flex-direction:column;align-items:flex-end;gap:.55rem}.compact-form{border-bottom:1px solid var(--line);padding-bottom:1rem}.inline-form{display:grid;grid-template-columns:1fr minmax(150px,.55fr) auto;gap:.7rem;align-items:end;border-bottom:1px solid var(--line);padding-bottom:1rem}.inline-form label{display:grid;gap:.35rem;font-weight:700;font-size:.82rem}.inline-form input,.inline-form select{border:1px solid var(--line);border-radius:9px;min-height:42px;padding:.55rem .7rem}.checklist-item{display:flex;gap:.7rem;align-items:flex-start;padding:.55rem;border-bottom:1px solid var(--line);cursor:pointer}.checklist-item input{margin-top:.2rem;width:18px;height:18px;accent-color:var(--primary)}.timeline article{display:grid;grid-template-columns:18px 1fr;gap:.55rem;position:relative}.timeline article>span{color:var(--primary);font-size:.78rem;padding-top:.2rem}.timeline p{margin:.1rem 0;color:#4d5a74;font-size:.85rem}.timeline small{color:var(--muted);font-size:.74rem}.collab-activity{grid-column:1/-1}.collab-empty{color:var(--muted);text-align:center;padding:1rem}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:900px){.collab-layout{grid-template-columns:1fr}.collab-activity{grid-column:auto}}@media(max-width:600px){.collab-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.attachment,.subtask{align-items:flex-start;flex-direction:column}.subtask-actions{align-items:stretch;width:100%}.inline-form{grid-template-columns:1fr}.collab-section{padding:1rem}.comment.reply{margin-left:.45rem}}
+/* ==========================================================================
+   ZeeMan — Task Collaboration Hub Modern 3D & Depth Styling
+   ========================================================================== */
+
+.task-overview {
+  margin-bottom: 1.4rem;
+}
+
+.collab-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.2rem;
+  margin-top: 0.75rem;
+}
+.collab-overview-grid > div {
+  display: grid;
+  gap: 0.35rem;
+}
+.collab-overview-grid small, .attachment small, .subtask small, .checklist-item small, .comment small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.collab-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.collab-section {
+  padding: 1.6rem;
+}
+.collab-section h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.count-chip {
+  background: var(--primary-tint);
+  color: var(--primary);
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.comment-list, .attachment-list, .subtask-list, .checklist-list, .timeline {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.2rem;
+}
+
+/* 3D Threaded Comments */
+.comment {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 1.15rem;
+  background: var(--card-solid);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+html[data-theme-time="night"] .comment {
+  background: rgba(30, 41, 59, 0.85);
+}
+.comment:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.comment.reply {
+  margin: 0.75rem 0 0 1.4rem;
+  background: rgba(248, 250, 252, 0.85);
+  border-left: 3px solid var(--primary-light);
+}
+html[data-theme-time="night"] .comment.reply {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.comment header, .comment footer {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.comment header {
+  justify-content: flex-start;
+}
+.comment header strong {
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.comment p, .subtask p {
+  white-space: pre-wrap;
+  margin: 0.65rem 0;
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.comment footer {
+  justify-content: flex-start;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--line);
+}
+
+.reply-host {
+  margin-top: 0.85rem;
+}
+.reply-form, .comment-edit-form {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+/* File Upload & Attachments */
+.attachment-upload {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.25rem;
+}
+.attachment-upload label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+.attachment-upload input {
+  max-width: 100%;
+}
+
+.attachment {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.95rem 1.1rem;
+  background: var(--card-solid);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+html[data-theme-time="night"] .attachment {
+  background: rgba(30, 41, 59, 0.85);
+}
+.attachment:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Image files are displayed as bounded previews, never at their natural
+   dimensions. The source continues to be the authenticated download route. */
+.attachment:has(.attachment-preview) {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 0.7rem;
+  overflow: hidden;
+}
+.attachment-preview {
+  display: block;
+  width: 104px;
+  height: 104px;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(15, 23, 42, 0.08);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+  transition: var(--transition-smooth);
+}
+.attachment:has(.attachment-preview):hover .attachment-preview {
+  transform: scale(1.035);
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.24);
+}
+.attachment:has(.attachment-preview) > div:first-of-type {
+  min-width: 0;
+}
+.attachment:has(.attachment-preview) > div:first-of-type strong,
+.attachment:has(.attachment-preview) > div:first-of-type small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attachment:has(.attachment-preview) > div:first-of-type strong {
+  white-space: nowrap;
+}
+.attachment:has(.attachment-preview) > div:first-of-type small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.attachment:has(.attachment-preview) > div:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.65rem;
+}
+
+.attachment strong, .subtask strong, .checklist-item strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+.attachment small, .subtask small, .checklist-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+/* Subtasks */
+.subtask {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.15rem;
+  background: var(--card-solid);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+html[data-theme-time="night"] .subtask {
+  background: rgba(30, 41, 59, 0.85);
+}
+.subtask:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.subtask p {
+  font-size: 0.86rem;
+}
+.subtask-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.compact-form {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.2rem;
+}
+.inline-form {
+  display: grid;
+  grid-template-columns: 1fr minmax(160px, 0.55fr) auto;
+  gap: 0.85rem;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1.2rem;
+}
+.inline-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+.inline-form input, .inline-form select {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  padding: 0.6rem 0.8rem;
+}
+
+/* Checklist Items */
+.checklist-item {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-smooth);
+}
+.checklist-item:hover {
+  background: var(--primary-tint);
+}
+.checklist-item input {
+  margin-top: 0.25rem;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Timeline */
+.timeline article {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 0.75rem;
+  position: relative;
+  padding: 0.35rem 0;
+}
+.timeline article > span {
+  color: var(--primary);
+  font-size: 0.85rem;
+  padding-top: 0.15rem;
+}
+.timeline p {
+  margin: 0.15rem 0;
+  color: var(--ink-secondary);
+  font-size: 0.88rem;
+}
+.timeline small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.collab-activity {
+  grid-column: 1 / -1;
+}
+.collab-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 950px) {
+  .collab-layout {
+    grid-template-columns: 1fr;
+  }
+  .collab-activity {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .collab-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .attachment:has(.attachment-preview) {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+  .attachment-preview {
+    width: 72px;
+    height: 72px;
+  }
+  .attachment:has(.attachment-preview) > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding: 0 0.2rem 0.2rem;
+  }
+  .attachment, .subtask {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .subtask-actions {
+    align-items: stretch;
+    width: 100%;
+  }
+  .inline-form {
+    grid-template-columns: 1fr;
+  }
+  .collab-section {
+    padding: 1.15rem;
+  }
+  .comment.reply {
+    margin-left: 0.65rem;
+  }
+}
